@@ -37,7 +37,7 @@ class ModelServer:
     def __init__(self):
         self.hugging_face_cache_folder = "/root/.cache/huggingface/hub"
         # read an YAML config file if exists
-        config_path = Path("imgenie.config.default.yaml")
+        config_path = Path("config/imgenie.config.default.yaml")
         if config_path.exists():
             with open(config_path, "r") as f:
                 config = yaml.safe_load(f)
