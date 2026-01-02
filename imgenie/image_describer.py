@@ -4,7 +4,6 @@ import io
 import time
 import logging
 from pathlib import Path
-from datetime import datetime
 from typing import Optional
 
 import numpy as np
@@ -18,20 +17,22 @@ logger = logging.getLogger(__name__)
 
 
 class IMGxTXT:
-    """Wrapper for image generation pipelines with benchmarking."""
 
-    def __init__(self,  # model: str = "fancyfeast/llama-joycaption-beta-one-hf-llava",
-                 model: str|None = None,
+    # Model identifier
+    model: str = ''
+
+    def __init__(self,
                  output_dir: str = "/root/.imgenie/img2txt"):
-        # Store model identifier
-        self.model = model
         # Setup output directory
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def load_model(self) -> None:
+    def load_model(self, model: str = "/root/.cache/huggingface/hub/models--fancyfeast--llama-joycaption-beta-one-hf-llava/weights") -> None:
         # Load the pipeline
         try:
+            self.model = model  
+            # Default to JoyCaption model: "fancyfeast/llama-joycaption-beta-one-hf-llava"
+
             load_start = time.time()
             logger.info(f"Loading model: {self.model}")
 
@@ -51,9 +52,8 @@ class IMGxTXT:
 
     def describe(self, img: PILImage.Image,
                  prompt: Optional[str] = None) -> dict:
-        # Define a chat histiry and use `apply_chat_template` to get correctly formatted prompt
-        # Each value in "content" has to be a list of dicts with types ("text", "image")
 
+        # Each value in "content" has to be a list of dicts with types ("text", "image")
         if prompt is None:
             prompt = "Describe the image in detail. Format the response as a single comprehensive paragraph."
 
@@ -110,11 +110,11 @@ class IMGxTXT:
 
 
 if __name__ == "__main__":
-    # Load model and wait for user prompt. Generate image and save to disk. And wait for next prompt until user exits.
-    server = IMGxTXT(model="/root/.cache/huggingface/hub/models--fancyfeast--llama-joycaption-beta-one-hf-llava/weights",
-                     output_dir="/root/.imgenie/img2txt")
+    # Load model and wait for user prompt.
+    server = IMGxTXT()
     server.load_model()
 
+    # Generate image and save to disk. And wait for next prompt until user exits.
     while True:
         image_path = input("Enter image path (or 'exit' to quit): ")
         if image_path.lower() == 'exit':

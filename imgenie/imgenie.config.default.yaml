@@ -1,19 +1,39 @@
 txt2img:
-  model_id: "Tongyi-MAI/Z-Image-Turbo"
-  model_path: "Tongyi-MAI/Z-Image-Turbo"
-  output_path: "/root/.imgenie/txt2img"
-  guidance_scale: 0
-  steps: 9
-  width: 720
-  height: 720
+  Z-IMAGE-TURBO:
+    model_id: "Tongyi-MAI/Z-Image-Turbo"
+    model_path: "Tongyi-MAI/Z-Image-Turbo"
+    output_path: "/root/.imgenie/txt2img"
+    guidance_scale: 0
+    steps: 9
+    width: 720
+    height: 720
+  STABLE_DIFFUSION:
+    model_id: "runwayml/stable-diffusion-v1-5"
+    model_path: "runwayml/stable-diffusion-v1-5"
+    output_path: "/root/.imgenie/txt2img"
+    guidance_scale: 7.5
+    steps: 25
+    width: 512
+    height: 512
 
 img2txt:
-  model_id: "fancyfeast/llama-joycaption-beta-one-hf-llava"
-  model_path: "/root/.cache/huggingface/hub/models--fancyfeast--llama-joycaption-beta-one-hf-llava/weights"
-  output_path: "/root/.imgenie/img2txt"
-  threshold: 0.3
-  system_prompt: "You are a helpful image captioner."
-  max_new_tokens: 512
-  temperature=0.6,
-  top_p=0.9,
-  top_k=None,
+  LLAMA-JOYCAPTION:
+    model_id: "fancyfeast/llama-joycaption-beta-one-hf-llava"
+    model_path: "/root/.cache/huggingface/hub/models--fancyfeast--llama-joycaption-beta-one-hf-llava/weights"
+    output_path: "/root/.imgenie/img2txt"
+    threshold: 0.3
+    system_prompt: "You are a helpful image captioner."
+    max_new_tokens: 512
+    temperature=0.6,
+    top_p=0.9,
+    top_k=None,
+
+img2img:
+  QWEN:
+    model_id: "Qwen/Qwen-VL-Chat-Image-1.5B"
+    model_path: "/root/.cache/huggingface/hub/models--Qwen--Qwen-VL-Chat-Image-1.5B/weights"
+    output_path: "/root/.imgenie/img2img"
+    guidance_scale: 7.5
+    steps: 25
+    width: 720
+    height: 720  

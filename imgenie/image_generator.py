@@ -16,20 +16,22 @@ logger = logging.getLogger(__name__)
 
 
 class TXTxIMG:
-    """Wrapper for image generation pipelines with benchmarking."""
 
-    def __init__(self,  # model: str = "Tongyi-MAI/Z-Image-Turbo",
-                 model: str|None = None,
-                 output_dir: str = "/root/.imgenie/txt2img"):
-        # Store model identifier
-        self.model = model
+    # Model identifier
+    model: str = ''
+
+    def __init__(self, output_dir: str = "/root/.imgenie/txt2img"):
         # Setup output directory
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def load_model(self) -> None:
+    def load_model(self, model: str = "Tongyi-MAI/Z-Image-Turbo") -> None:
         # Load the pipeline
         try:
+            self.model = model  
+            # Default to Z-Image-Turbo: "Tongyi-MAI/Z-Image-Turbo"
+            # /root/.cache/huggingface/hub/models--Tongyi-MAI--Z-Image-Turbo/
+
             load_start = time.time()
             logger.info(f"Loading model: {self.model}")
 
@@ -112,11 +114,11 @@ class TXTxIMG:
 
 
 if __name__ == "__main__":
-    # Load model and wait for user prompt. Generate image and save to disk. And wait for next prompt until user exits.    
-    server = TXTxIMG(model="Tongyi-MAI/Z-Image-Turbo",  # /root/.cache/huggingface/hub/models--Tongyi-MAI--Z-Image-Turbo/
-                     output_dir="/root/.imgenie/txt2img")
+    # Load model and wait for user prompt. 
+    server = TXTxIMG()
     server.load_model()
 
+    # Generate image and save to disk. And wait for next prompt until user exits.
     while True:
         user_prompt = input("Enter prompt (or 'exit' to quit): ")
         if user_prompt.lower() == 'exit':

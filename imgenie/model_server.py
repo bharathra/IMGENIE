@@ -4,7 +4,7 @@ import io
 import yaml
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, Optional
 
 import uvicorn
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
@@ -41,17 +41,18 @@ class ModelServer:
         if config_path.exists():
             with open(config_path, "r") as f:
                 config = yaml.safe_load(f)
-        
-        # get txt2img and img2txt configs 
-        t2i_cfg = config.get("txt2img", {})
-        t2i_cfg.update(t2i_cfg)
-        i2t_cfg = config.get("img2txt", {})
-        i2t_cfg.update(i2t_cfg)
+        else:
+            config = {}  # empty config
+            logger.warning("No config file found, using default settings.")
 
-        self.t2i_model = TXTxIMG(model=t2i_cfg.get("model_path", "Tongyi-MAI/Z-Image-Turbo/"),
-                                 output_dir=t2i_cfg.get("output_path", "/root/.imgenie/txt2img"))
-        self.i2t_model = IMGxTXT(model=i2t_cfg.get("model_path", "/root/.cache/huggingface/hub/models--fancyfeast--llama-joycaption-beta-one-hf-llava/weights"),
-                                 output_dir=i2t_cfg.get("output_path", "/root/.imgenie/img2txt"))
+        # get txt2img and img2txt configs
+        self.t2i_cfg = config.get("txt2img", {})
+        self.t2i_cfg.update(self.t2i_cfg)
+        self.i2t_cfg = config.get("img2txt", {})
+        self.i2t_cfg.update(self.i2t_cfg)
+
+        self.t2i_model = TXTxIMG(output_dir=self.t2i_cfg.get("output_path", "/root/.imgenie/txt2img"))
+        self.i2t_model = IMGxTXT(output_dir=self.i2t_cfg.get("output_path", "/root/.imgenie/img2txt"))
 
     @app.on_event("startup")
     async def startup_event(self):
@@ -62,8 +63,8 @@ class ModelServer:
         pass
 
     @app.post("/load_model")
-    async def _load_model(self, model_type: str):
-        self._load_models(type=[model_type])
+    async def _load_model(self, models: Dict[str, str] = Form(...)):
+        self._load_models(models=models)
         return JSONResponse(content={"status": "models loaded"})
 
     @app.get("/get_model_load_status")
@@ -101,17 +102,19 @@ class ModelServer:
         logger.info("Download complete.")
         return FileResponse(model_folder)
 
-    def _load_models(self, type: List[str] = ["t2i", "i2t"]):
-        for t in type:
-            if t not in ["t2i", "i2t"]:
-                logger.warning(f"Unknown model type: {t}. Skipping.")
+    def _load_models(self, models: Dict[str, str] = {"t2i": "Z-IMAGE-TURBO", "i2t": "LLAMA-JOYCAPTION"}):
+        for model_type, model in models.items():
+            if model_type not in ["t2i", "i2t"]:
+                logger.warning(f"Unknown model type: {model}. Skipping.")
                 continue
-            logger.info(f"Loading {t} model...")
-            if t == "t2i" and self.t2i_model is not None:
-                self.t2i_model.load_model()
+            logger.info(f"Loading {model_type} model: {model}...")
+            if model_type == "t2i" and self.t2i_model is not None:
+                self.t2i_model.load_model(model=self.t2i_cfg.get(f"{model_type}/model_path",
+                                                                 "Tongyi-MAI/Z-Image-Turbo/"))
                 self.load_status["t2i"] = True
-            elif t == "i2t" and self.i2t_model is not None:
-                self.i2t_model.load_model()
+            elif model == "i2t" and self.i2t_model is not None:
+                self.i2t_model.load_model(model=self.i2t_cfg.get(f"{model_type}/model_path",
+                                                                 "/root/.cache/huggingface/hub/models--fancyfeast--llama-joycaption-beta-one-hf-llava/weights"))
                 self.load_status["i2t"] = True
 
 
