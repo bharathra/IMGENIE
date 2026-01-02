@@ -1,4 +1,4 @@
-version: '3.8'
+# Docker Compose file for Imgenie development container
 services:
   # Update this to the name of the service you want to work with in your docker-compose.yml file
   imgenie_app:
@@ -11,9 +11,49 @@ services:
     #   context: .
     #   dockerfile: .devcontainer/Dockerfile
 
-    # volumes:
+    image: imgenie:latest
+    container_name: imgenie
+
+    environment:
+      - PYTHONPATH=/usr/lib/python3/dist-packages
+      - PYTORCH_ALLOC_CONF=expandable_segments:True
+      - TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL=1
+      - DISPLAY=${DISPLAY}
+      - XAUTHORITY=/root/.Xauthority
+
+    devices:
+      - /dev/kfd
+      - /dev/dri
+
+    # Required for GPU acceleration (prevents GTK 4 lag)
+    device_cgroup_rules:
+      - 'c 226:* rmw'
+
+    # Bridge Mode (Default): The container is isolated. 
+    # Use ports: - "8000:8000" to map host port to the container.
+    # ports:
+    #   - "8000:8000"
+
+    # Host Mode: The container shares the host's network stack directly. 
+    # Mutually exclusive with port mappings.
+    network_mode: host
+
+    # Custom DNS servers (uncomment to use)
+    # dns:
+    #   - 8.8.8.8
+    #   - 8.8.4.4
+
+    volumes:
       # Update this to wherever you want VS Code to mount the folder of your project
       # - .:/workspace:cached
+      - ..:/IMGENIE
+      - /home/bharath/.imgenie:/root/.imgenie
+      - /home/bharath/.cache/huggingface:/root/.cache/huggingface
+      # X11 socket and auth for GUI apps
+      - /tmp/.X11-unix:/tmp/.X11-unix
+      - ~/.Xauthority:/root/.Xauthority:rw
+
+    working_dir: /IMGENIE
 
     # Uncomment the next four lines if you will use a ptrace-based debugger like C++, Go, and Rust.
     # cap_add:
@@ -21,7 +61,10 @@ services:
     # security_opt:
     #   - seccomp:unconfined
 
+    stdin_open: true
+    tty: true
+
     # Overrides default command so things don't shut down after the process ends.
+    # command: bash
+    # command: uvicorn imgen.server:app --host 0.0.0.0 --port 8000
     command: sleep infinity
- 
-    # working_dir: /IMGENIE
