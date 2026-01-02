@@ -112,8 +112,8 @@ class TXTxIMG:
 
 
 if __name__ == "__main__":
-    # Load model and wait for user prompt. Generate image and save to disk. And wait for next prompt until user exits.
-    server = TXTxIMG(model="/root/.cache/models/hub/models--Tongyi-MAI--Z-Image-Turbo/",
+    # Load model and wait for user prompt. Generate image and save to disk. And wait for next prompt until user exits.    
+    server = TXTxIMG(model="Tongyi-MAI/Z-Image-Turbo",  # /root/.cache/huggingface/hub/models--Tongyi-MAI--Z-Image-Turbo/
                      output_dir="/root/.imgenie/txt2img")
     server.load_model()
 

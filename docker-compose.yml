@@ -6,10 +6,10 @@ services:
       - /dev/kfd
       - /dev/dri
     volumes:
-      - .:/workspace
+      - .:/IMGENIE
       - /home/bharath/.imgenie:/root/.imgenie
       - /home/bharath/.cache/huggingface:/root/.cache/huggingface
-    working_dir: /workspace
+    # working_dir: /IMGENIE
     # dns:
     #   - 8.8.8.8
     #   - 8.8.4.4
