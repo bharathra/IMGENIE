@@ -10,8 +10,8 @@ import uvicorn
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 
-from imgenie.image_generator import TXTxIMG
-from imgenie.image_describer import IMGxTXT
+from image_generator import TXTxIMG
+from image_describer import IMGxTXT
 from huggingface_hub import snapshot_download
 
 from PIL import Image
@@ -21,10 +21,6 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="IMGEN Server")
-
-# Constants
-OUTPUT_DIR = Path("outputs")
-OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class ModelServer:
@@ -47,12 +43,13 @@ class ModelServer:
 
         # get txt2img and img2txt configs
         self.t2i_cfg = config.get("txt2img", {})
-        self.t2i_cfg.update(self.t2i_cfg)
         self.i2t_cfg = config.get("img2txt", {})
-        self.i2t_cfg.update(self.i2t_cfg)
 
-        self.t2i_model = TXTxIMG(output_dir=self.t2i_cfg.get("output_path", "/root/.imgenie/txt2img"))
-        self.i2t_model = IMGxTXT(output_dir=self.i2t_cfg.get("output_path", "/root/.imgenie/img2txt"))
+        t2i_out = Path(self.t2i_cfg.get("output_path", "/root/.imgenie/txt2img")).expanduser()
+        i2t_out = Path(self.i2t_cfg.get("output_path", "/root/.imgenie/img2txt")).expanduser()
+
+        self.t2i_model = TXTxIMG(output_dir=str(t2i_out))
+        self.i2t_model = IMGxTXT(output_dir=str(i2t_out))
 
     @app.on_event("startup")
     async def startup_event(self):
@@ -62,8 +59,8 @@ class ModelServer:
     async def shutdown_event(self):
         pass
 
-    @app.post("/load_model")
-    async def _load_model(self, models: Dict[str, str] = Form(...)):
+    @app.post("/load_models")
+    async def load_models(self, models: Dict[str, str] = Form(...)):
         self._load_models(models=models)
         return JSONResponse(content={"status": "models loaded"})
 

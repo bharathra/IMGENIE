@@ -1,0 +1,25 @@
+I am creating an GTK 4.0 based app called Imgenie, on Ubuntu 25.10 for an image generation using open source image-to-text and text-to-image models. Following the workflow for the app:
+Step 1: Load the selected models into GPU memory
+Step 2: Select a reference image; Get a detailed description of the image using the image to text model
+Step 3: Edit the description to suit a new context
+Step 4: Generate image using the modified description
+
+I have created UI mockups for the app. The SVG files for the mockup can be found in this project at imgenie/docs/uimockup. The main concept of the UI is to use collapsible panels in a row and guide the user through each step. Only UI elements for one step will be shown at any time to the user - other panels will collapse. The navigation is automated - but user can decide to jump to any of the steps at any time.  
+
+Here are the files and their descriptions. Ask me any questions if my instructions were not clear.
+
+ui_full_view.svg: This shows the fully exploded view to show all elements of the UI in one shot. Please note this is only for design purposes. At run time only the UI elements that are relevant to that step shall be shown
+ui_step1_load_models.svg: Options for user to select the desired models to load. The options in the drop-down boxes shall be populated by an YAML config file (config/imgenie.config.default.yaml). Any error/info messages shall be shown at the bottom as indicated.
+ui_step2_select_image.svg: User can select a reference image by clicking on the square box which also holds the image thumbnail. Right click will erase any existing image. Triggering on the "Description" panel header will navigate to next step and also initiate the image to text description.
+ui_step3_update_description: This will have an editable text box (with spellcheck and grammar check enabled if possible). The user can edit as needed. When the user is done, they can press the panel "New image" panel header to initiate image generation. The UI transitions to next panel. 
+ui_step4_generate_image.svg: If there are any existing image in the New Image thumbnail box, it will get erased and is replaced with an animated gif showing that image generation is in progress(I can provide a gif file). Once the image is generated, it will be populated in the box. Right clicking the box will clear any existing image.
+ui_settings.svg: Clicking on the settings button at the right most end - will open the settings panel to the right. The settings are TBD for now.
+
+My backend is mostly ready. I am using FastAPI server with the following apis:
+load_models, get_model_load_status, generate(text-to-image), describe(image-to-text)
+
+Can you create a modern style UI using GTK 4 Python using these mockups?
+
+
+
+
