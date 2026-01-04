@@ -11,7 +11,7 @@ services:
     #   context: .
     #   dockerfile: .devcontainer/Dockerfile
 
-    image: imgenie:latest
+    image: imgenie-lora:latest
     container_name: imgenie
 
     environment:
@@ -29,6 +29,10 @@ services:
     device_cgroup_rules:
       - 'c 226:* rmw'
 
+    # Required for inter-process communication with GUI apps
+    ipc: host
+
+    # Networking options:
     # Bridge Mode (Default): The container is isolated. 
     # Use ports: - "8000:8000" to map host port to the container.
     # ports:
