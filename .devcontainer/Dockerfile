@@ -1,10 +1,5 @@
 FROM rocm/pytorch:rocm7.1.1_ubuntu24.04_py3.12_pytorch_release_2.9.1
 
-# Dont need this in the container; We run UI on host
-# RUN apt-get update && apt-get install -y \
-#     python3-gi python3-gi-cairo gir1.2-gtk-4.0 libgtk-4-dev gir1.2-adw-1 libgirepository1.0-dev \
-#     && rm -rf /var/lib/apt/lists/*
-
 RUN apt-get update && apt-get install -y dbus-x11 \
     && rm -rf /var/lib/apt/lists/*
 
@@ -21,6 +16,8 @@ RUN pip install --no-cache-dir \
     protobuf \
     sentencepiece
 
+
+    
 # Copy your project files
 # COPY . /IMGENIE/
 

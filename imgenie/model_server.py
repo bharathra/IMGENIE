@@ -85,7 +85,11 @@ class ModelServer:
         return result["description"]
 
     @app.post("/download_model")
-    async def download_model(self, model_id: str = Form(...)):
+    async def download_model(self, model_id: str = Form(...)) -> FileResponse:
+        model_folder = self._download_model(model_id=model_id)
+        return FileResponse(model_folder)
+
+    def _download_model(self, model_id: str) -> Path:
         model_folder = Path(self.hugging_face_cache_folder,
                             f"model--{model_id.replace("/", "--")}")
         Path(model_folder).mkdir(parents=True, exist_ok=True)
@@ -97,7 +101,7 @@ class ModelServer:
                           local_dir_use_symlinks=False,  # Copies files directly
                           revision="main")
         logger.info("Download complete.")
-        return FileResponse(model_folder)
+        return model_folder
 
     def _load_models(self, models: Dict[str, str] = {"t2i": "Z-IMAGE-TURBO", "i2t": "LLAMA-JOYCAPTION"}):
         for model_type, model in models.items():
@@ -116,4 +120,8 @@ class ModelServer:
 
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    # uvicorn.run(app, host="0.0.0.0", port=8000)
+    # Just download models for testing
+    server = ModelServer()
+    server._download_model("Tongyi-MAI/Z-Image-Turbo")           
+

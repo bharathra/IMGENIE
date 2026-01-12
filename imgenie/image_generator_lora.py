@@ -18,7 +18,7 @@ class TXTxIMG:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.pipeline: Optional[ZImagePipeline] = None
 
-    def load_model(self, model: str = "Tongyi-MAI/Z-Image-Turbo", lora_paths: Optional[list] = None) -> None:
+    def load_model(self, model: str = "/root/.cache/huggingface/hub/model--Tongyi-MAI--Z-Image-Turbo/", lora_paths: Optional[list] = None) -> None:
         try:
             logger.info(f"Loading base model: {model}")
             self.pipeline = ZImagePipeline.from_pretrained(
@@ -77,7 +77,7 @@ class TXTxIMG:
 
     def generate(self,
                  prompt: str,
-                 negative_prompt: str = "",
+                 negative_prompt: str = "ugly, deformed, distorted, disfigured, lowres, bad anatomy, blurry, fuzzy, jpeg artifacts, cropped, worst quality, low quality, normal quality, jpeg artifacts, ugly, duplicate, morbid, mutilated, out of frame, extra fingers, mutated hands and fingers, poorly drawn hands and fingers, poorly drawn face, mutation, deformed, blurry, dehydrated, bad proportions, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck",
                  height: int = 720,
                  width: int = 720,
                  num_inference_steps: int = 9,
@@ -101,6 +101,7 @@ class TXTxIMG:
                     negative_prompt=negative_prompt,
                     num_inference_steps=num_inference_steps,
                     guidance_scale=guidance_scale,
+                    # generator=torch.Generator("cuda").manual_seed(seed),
                     height=height,
                     width=width,
                 )
@@ -128,11 +129,12 @@ if __name__ == "__main__":
     my_loras = [
         # characters 0.7
         # "/root/.imgenie/loras/z_image_turbo_alex_d/z_image_turbo_alex_d.safetensors", # LoRA wt: 0.6; Trigger: Alexandra Daddario
-        "/root/.imgenie/loras/z_image_turbo_tam_bhat/z_image_turbo_tam_bhat.safetensors", # LoRA wt: 0.6; Trigger: Tam_Bhat
+        # "/root/.imgenie/loras/z_image_turbo_tam_bhat/z_image_turbo_tam_bhat.safetensors", # LoRA wt: 0.6; Trigger: Tam_Bhat
+        # "/root/.imgenie/loras/z_image_turbo_deb_ryan2/z_image_turbo_deb_ryan2.safetensors", # LoRA wt: 0.6; Trigger: deb_ryan
+        # "/root/.imgenie/loras/z_image_turbo_kajol/z_image_turbo_kajol.safetensors", # LoRA wt: 0.6;
         # poses 0.3
-        # "/root/.imgenie/loras/downblouse/downblouse_pose.safetensors",
-        # "/root/.imgenie/loras/turbopussy/TurboPussyZ_v1.safetensors",
-        # "/root/.imgenie/loras/mystic/Mystic-XXX-ZIT-v3.safetensors",
+        "/root/.imgenie/loras/gpussy/gp-zimage_000008000.safetensors",
+        # "/root/.imgenie/loras/z_image_turbo_vulva_spread/z_image_turbo_vulva_spread.safetensors",
     ]
 
     server.load_model(lora_paths=my_loras)
@@ -143,5 +145,5 @@ if __name__ == "__main__":
             break
 
         # Adjust weights here: e.g., 0.7 for character, 0.3 for pose
-        path, t = server.generate(prompt=user_prompt, lora_weights=[0.6])
+        path, t = server.generate(prompt=user_prompt, lora_weights=[0.5])
         print(f"Done in {t:.2f}ms: {path}")

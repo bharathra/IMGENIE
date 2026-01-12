@@ -25,7 +25,7 @@ class TXTxIMG:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def load_model(self, model: str = "Tongyi-MAI/Z-Image-Turbo") -> None:
+    def load_model(self, model: str = "/root/.cache/huggingface/hub/model--Tongyi-MAI--Z-Image-Turbo/") -> None:
         # Load the pipeline
         try:
             self.model = model  
@@ -55,7 +55,7 @@ class TXTxIMG:
 
     def generate(self,
                  prompt: str,
-                 negative_prompt: str = "",
+                 negative_prompt: str = "ugly, deformed, distorted, obscured, obstructed, hidden, covered, disfigured, lowres, bad anatomy, blurry, fuzzy, jpeg artifacts, cropped, worst quality, low quality, normal quality, jpeg artifacts, ugly, duplicate, morbid, mutilated",
                  height: int = 720,
                  width: int = 720,
                  num_inference_steps: int = 9,
@@ -71,6 +71,7 @@ class TXTxIMG:
                     negative_prompt=negative_prompt,
                     num_inference_steps=num_inference_steps,
                     guidance_scale=guidance_scale,
+                    # generator=torch.Generator("cuda").manual_seed(seed),
                     height=height,
                     width=width,
                 )

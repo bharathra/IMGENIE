@@ -11,7 +11,7 @@ services:
     #   context: .
     #   dockerfile: .devcontainer/Dockerfile
 
-    image: imgenie-lora:latest
+    image: imgenie:latest
     container_name: imgenie
 
     environment:

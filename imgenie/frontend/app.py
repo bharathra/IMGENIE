@@ -358,7 +358,7 @@ class ImgenieWindow(Gtk.ApplicationWindow):
 
         # CSS
         provider = Gtk.CssProvider()
-        provider.load_from_path('imgenie/style.css')
+        provider.load_from_path('imgenie/frontend/style.css')
         Gtk.StyleContext.add_provider_for_display(
             Gdk.Display.get_default(), 
             provider, 

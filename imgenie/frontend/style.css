@@ -2,7 +2,7 @@
 window {
     background-color: #1e1e1e;
     color: #ffffff;
-    font-family: "Inter", "Cantarell", "Sans";
+    font-family: "M PLUS 2";
 }
 
 /* Accordion/Step Panel Styles */
@@ -12,8 +12,9 @@ window {
 
 .step-header {
     background-color: #333333;
-    padding: 10px;
-    min-width: 40px;
+    /* padding: 5px; */
+    /* min-width: 10px; */
+    max-width: 20px;
     border-right: 1px solid #444;
     transition: background-color 0.3s;
 }
@@ -29,7 +30,7 @@ window {
 
 .step-header-label {
     font-weight: bold;
-    font-size: 14px;
+    font-size: 24px;
 }
 
 .rotated-label {
