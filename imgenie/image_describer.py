@@ -114,11 +114,32 @@ if __name__ == "__main__":
     server = IMGxTXT()
     server.load_model()
 
-    # Generate image and save to disk. And wait for next prompt until user exits.
-    while True:
-        image_path = input("Enter image path (or 'exit' to quit): ")
-        if image_path.lower() == 'exit':
-            break
-        img = server.get_image_from_path(image_path)
-        result = server.describe(img)
-        print("Generated Description:", result["description"])
+    # # Generate image and save to disk. And wait for next prompt until user exits.
+    # while True:
+    #     image_path = input("Enter image path (or 'exit' to quit): ")
+    #     if image_path.lower() == 'exit':
+    #         break
+    #     img = server.get_image_from_path(image_path)
+    #     result = server.describe(img)
+    #     print("Generated Description:", result["description"])
+
+    # Ask for a folder path and describe all images in it
+    folder_path = input("Enter folder path containing images (or 'exit' to quit): ")
+    if folder_path.lower() != 'exit':
+        folder = Path(folder_path)
+        for img_file in folder.glob("*.*"):
+            try:
+                img = server.get_image_from_path(str(img_file))
+                result = server.describe(img)
+                print(f"Image: {img_file.name} - Description: {result['description']}")
+                # Save description to a text file
+                desc_file = server.output_dir / f"{img_file.stem}_description.txt"
+                with open(desc_file, 'w') as f:
+                    f.write(result['description'])  
+
+            except Exception as e:
+                logger.error(f"Error processing image {img_file.name}: {e}")
+    else:
+        print("Exiting...")
+        exit()
+

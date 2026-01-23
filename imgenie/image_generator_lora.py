@@ -77,10 +77,10 @@ class TXTxIMG:
 
     def generate(self,
                  prompt: str,
-                 negative_prompt: str = "ugly, deformed, distorted, disfigured, lowres, bad anatomy, blurry, fuzzy, jpeg artifacts, cropped, worst quality, low quality, normal quality, jpeg artifacts, ugly, duplicate, morbid, mutilated, out of frame, extra fingers, mutated hands and fingers, poorly drawn hands and fingers, poorly drawn face, mutation, deformed, blurry, dehydrated, bad proportions, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck",
+                 negative_prompt: str = "ugly, deformed, distorted, disfigured, lowres, bad anatomy, blurry, vibrators, sex toys, fuzzy, jpeg artifacts, cropped, worst quality, low quality, normal quality, jpeg artifacts, ugly, duplicate, morbid, mutilated, out of frame, extra fingers, mutated hands and fingers, poorly drawn hands and fingers, poorly drawn face, mutation, deformed, blurry, dehydrated, bad proportions, cloned face, disfigured, gross proportions, malformed limbs, missing arms, missing legs, extra arms, extra legs, fused fingers, too many fingers, long neck",
                  height: int = 720,
                  width: int = 720,
-                 num_inference_steps: int = 9,
+                 num_inference_steps: int = 12,
                  guidance_scale: float = 0,
                  lora_weights: Optional[list] = None) -> tuple[str, float]:
 
@@ -131,10 +131,39 @@ if __name__ == "__main__":
         # "/root/.imgenie/loras/z_image_turbo_alex_d/z_image_turbo_alex_d.safetensors", # LoRA wt: 0.6; Trigger: Alexandra Daddario
         # "/root/.imgenie/loras/z_image_turbo_tam_bhat/z_image_turbo_tam_bhat.safetensors", # LoRA wt: 0.6; Trigger: Tam_Bhat
         # "/root/.imgenie/loras/z_image_turbo_deb_ryan2/z_image_turbo_deb_ryan2.safetensors", # LoRA wt: 0.6; Trigger: deb_ryan
-        # "/root/.imgenie/loras/z_image_turbo_kajol/z_image_turbo_kajol.safetensors", # LoRA wt: 0.6;
+        # "/root/.imgenie/loras/z_image_turbo_kajol/z_image_turbo_kajol.safetensors", # LoRA wt: 0.6; Trigger: Kajol
+        # "/root/.imgenie/loras/z_image_madhuri/z_image_madhuri.safetensors", # LoRA wt: 0.6; Trigger: Madhuri Dixit
+        # "/root/.imgenie/loras/z_image_rachel/z_image_rachel.safetensors",  # LoRA wt: 0.6; Trigger: Rachel Weisz
+        # "/root/.imgenie/loras/z_image_mila/z_image_mila.safetensors", # LoRA wt: 0.6; Trigger: Mila Kunis
+        # "/root/.imgenie/loras/z_image_melissa/z_image_melissa.safetensors",  # LoRA wt: 0.6; Trigger: Melissa Joan Hart
+        # "/root/.imgenie/loras/z_image_anna/z_image_anna.safetensors",  # LoRA wt: 0.6; Trigger: Anna Torv
+        "/root/.imgenie/loras/z_image_rani_m/z_image_rani_m.safetensors",  # LoRA wt: 0.6; Trigger: Rani Mukerji
+        # "/root/.imgenie/loras/z_image_kat_den/z_image_kat_den.safetensors",  # LoRA wt: 0.6; Trigger: Kat Dennings
+        # "/root/.imgenie/loras/z_image_alicia_silver/z_image_alicia_silver.safetensors",  # LoRA wt: 0.6; Trigger: Alicia Silverstone
+        # "/root/.imgenie/loras/z_image_amy_adams/z_image_amy_adams.safetensors",  # LoRA wt: 0.6; Trigger: Amy Adams
+        # "/root/.imgenie/loras/z_image_naomi_scott/z_image_naomi_scott.safetensors",  # LoRA wt: 0.6; Trigger: Naomi Scott
+        # "/root/.imgenie/loras/z_image_lindsay_lohan/z_image_lindsay_lohan.safetensors",  # LoRA wt: 0.7; Trigger: Lindsay Lohan
+        # "/root/.imgenie/loras/z_image_amber_heard/z_image_amber_heard.safetensors",  # LoRA wt: 0.7; Trigger: Amber Heard
+        # muliple loras in one folder
+        # "/root/.imgenie/loras/characters/ZIdT Alexis Bledel (vrtlAlexisBledel).safetensors",  # LoRA wt: 0.7; Trigger: Alexis Bledel
+        # "/root/.imgenie/loras/characters/ZIdT Alice Eve (vrtlAliceEve).safetensors",  # LoRA wt: 0.7; Trigger: Alice Eve
+        # "/root/.imgenie/loras/characters/ZIdT Bryce Dallas Howard (vrtlBryceDallasHoward).safetensors",  # LoRA wt: 0.7; Trigger: Bryce Dallas Howard
+        # "/root/.imgenie/loras/characters/ZIdT Carla Gugino (vrtlCarlaGugino).safetensors", # LoRA wt: 0.7; Trigger: Carla Gugino
+        # "/root/.imgenie/loras/characters/ZIdT Hayley Atwell (vrtlHayleyAtwell).safetensors",  # LoRA wt: 0.7; Trigger: Hayley Atwell
+        # "/root/.imgenie/loras/characters/ZIdT Hilary Duff (vrtlHilaryDuff).safetensors",  # LoRA wt: 0.7; Trigger: Hilary Duff
+        # "/root/.imgenie/loras/characters/ZIdT Jessica Biel (vrtljessicabiel).safetensors",  # LoRA wt: 0.7; Trigger: Jessica Biel
+        # "/root/.imgenie/loras/characters/ZIdT Joanne Kelly (vrtlJoanneKelly).safetensors",  # LoRA wt: 0.7; Trigger: Joanne Kelly
+        # "/root/.imgenie/loras/characters/ZIdT Kira Kosarin (vrtlKiraKosarin).safetensors",  # LoRA wt: 0.7; Trigger: Kira Kosarin
+        # "/root/.imgenie/loras/characters/ZIdT Kristen Bell (vrtlKristenBell).safetensors",  # LoRA wt: 0.7; Trigger: Kristen Bell
+        # "/root/.imgenie/loras/characters/ZIdT Lili Reinhart (vrtlLiliReinhart).safetensors",  # LoRA wt: 0.7; Trigger: Lili Reinhart
+        # "/root/.imgenie/loras/characters/ZIdT Michelle Trachtenberg (vrtlMichelleTrachtenberg).safetensors",  # LoRA wt: 0.7; Trigger: Michelle Trachtenberg
+        # "/root/.imgenie/loras/characters/ZIdT Rachel McAdams (vrtlRachelMcAdams).safetensors",  # LoRA wt: 0.7; Trigger: Rachel McAdams
+        # "/root/.imgenie/loras/characters/ZIdT Sarah Lancaster (vrtlSarahLancaster).safetensors",  # LoRA wt: 0.7; Trigger: Sarah Lancaster
+        # "/root/.imgenie/loras/characters/ZIdT Sarah Silverman (vrtlSarahSilverman).safetensors",  # LoRA wt: 0.7; Trigger: Sarah Silverman      
+
         # poses 0.3
-        "/root/.imgenie/loras/gpussy/gp-zimage_000008000.safetensors",
-        # "/root/.imgenie/loras/z_image_turbo_vulva_spread/z_image_turbo_vulva_spread.safetensors",
+        # "/root/.imgenie/loras/gpussy/gp-zimage_000008000.safetensors",
+        # "/root/.imgenie/loras/z_image_turbo_vulva_spread/z_image_turbo_vulva_spread.safetensors", # LoRA wt: 0.3; Trigger: vulva spread
     ]
 
     server.load_model(lora_paths=my_loras)
@@ -145,5 +174,6 @@ if __name__ == "__main__":
             break
 
         # Adjust weights here: e.g., 0.7 for character, 0.3 for pose
-        path, t = server.generate(prompt=user_prompt, lora_weights=[0.5])
+        path, t = server.generate(prompt=user_prompt, 
+                                  lora_weights=[0.7])  # Adjust weights as needed
         print(f"Done in {t:.2f}ms: {path}")

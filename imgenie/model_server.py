@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, JSONResponse
 
 from image_generator import TXTxIMG
 from image_describer import IMGxTXT
-from huggingface_hub import snapshot_download
+from model_downloader import ModelDownloader
 
 from PIL import Image
 
@@ -31,7 +31,6 @@ class ModelServer:
     load_status: dict = {"t2i": False, "i2t": False}
 
     def __init__(self):
-        self.hugging_face_cache_folder = "/root/.cache/huggingface/hub"
         # read an YAML config file if exists
         config_path = Path("config/imgenie.config.default.yaml")
         if config_path.exists():
@@ -50,14 +49,7 @@ class ModelServer:
 
         self.t2i_model = TXTxIMG(output_dir=str(t2i_out))
         self.i2t_model = IMGxTXT(output_dir=str(i2t_out))
-
-    @app.on_event("startup")
-    async def startup_event(self):
-        pass
-
-    @app.on_event("shutdown")
-    async def shutdown_event(self):
-        pass
+        self.model_downloader = ModelDownloader()
 
     @app.post("/load_models")
     async def load_models(self, models: Dict[str, str] = Form(...)):
@@ -86,22 +78,8 @@ class ModelServer:
 
     @app.post("/download_model")
     async def download_model(self, model_id: str = Form(...)) -> FileResponse:
-        model_folder = self._download_model(model_id=model_id)
+        model_folder = self.model_downloader.download_model(model_id=model_id)
         return FileResponse(model_folder)
-
-    def _download_model(self, model_id: str) -> Path:
-        model_folder = Path(self.hugging_face_cache_folder,
-                            f"model--{model_id.replace("/", "--")}")
-        Path(model_folder).mkdir(parents=True, exist_ok=True)
-        logger.info(f"Downloading {model_id}...")
-        logger.info(f"Destination directory: {model_folder}")
-        logger.info("This may take a while...")
-        snapshot_download(repo_id=model_id,
-                          local_dir=model_folder,
-                          local_dir_use_symlinks=False,  # Copies files directly
-                          revision="main")
-        logger.info("Download complete.")
-        return model_folder
 
     def _load_models(self, models: Dict[str, str] = {"t2i": "Z-IMAGE-TURBO", "i2t": "LLAMA-JOYCAPTION"}):
         for model_type, model in models.items():
@@ -121,7 +99,5 @@ class ModelServer:
 
 if __name__ == "__main__":
     # uvicorn.run(app, host="0.0.0.0", port=8000)
-    # Just download models for testing
     server = ModelServer()
-    server._download_model("Tongyi-MAI/Z-Image-Turbo")           
 
