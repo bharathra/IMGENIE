@@ -10,7 +10,7 @@ import uvicorn
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 
-from image_generator import TXTxIMG
+from imgenie.test.image_generator import TXTxIMG
 from image_describer import IMGxTXT
 from model_downloader import ModelDownloader
 
