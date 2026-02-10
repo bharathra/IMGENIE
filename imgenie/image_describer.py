@@ -133,7 +133,7 @@ if __name__ == "__main__":
                 result = server.describe(img)
                 print(f"Image: {img_file.name} - Description: {result['description']}")
                 # Save description to a text file
-                desc_file = server.output_dir / f"{img_file.stem}_description.txt"
+                desc_file = server.output_dir / f"{img_file.stem}.txt"
                 with open(desc_file, 'w') as f:
                     f.write(result['description'])  
 

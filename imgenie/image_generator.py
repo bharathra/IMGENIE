@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 
-from random import seed
-import time
 import logging
+from os import path
 from pathlib import Path
 from datetime import datetime
 from typing import Optional
 import yaml as yf   # to avoid conflict with PyYAML
 
 import torch
+from random import seed
 from diffusers import ZImagePipeline
 
 logging.basicConfig(level=logging.INFO)
@@ -16,7 +16,6 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 MODEL = "/root/.cache/huggingface/hub/model--Tongyi-MAI--Z-Image-Turbo/"
-DEFAULT_NEGATIVE_PROMPT = "deformed, distorted, disjointed, disfigured, blurry, vibrators, sex toys, fuzzy, morbid, mutilated, mutated anatomy, malformed anatomy, missing anatomy, fused anatomy, unnatural anatomy"
 
 
 class TXTxIMG:
@@ -37,10 +36,9 @@ class TXTxIMG:
                 model,
                 torch_dtype=torch.bfloat16,
                 use_safetensors=True,
-                local_files_only=True
-            ).to("cuda:0")
+                local_files_only=True).to("cuda:0")
+            logger.info("Model loaded successfully.")
 
-            logger.info("Model and LoRAs loaded successfully.")
         except Exception as e:
             logger.error(f"Error loading model: {e}")
             raise e
@@ -52,21 +50,20 @@ class TXTxIMG:
         if self.pipeline is None:
             raise ValueError("Model pipeline is not loaded.")
 
-        # check if the loras to load are different from the currently active ones
-        if set(loras) == set(self._active_loras):
-            logger.info("Requested LoRAs are already active. No changes made.")
-            return
-
         # First, unload existing loras
-        self.pipeline.unload_lora_weights()
-        self._active_loras = []
+        if self._active_loras:
+            self.pipeline.unload_lora_weights()
+            self._active_loras = []
+
+        if not loras:
+            # logger.info("No LoRAs to load. Exiting load_loras.")
+            return
 
         # load added loras
         for i, path_str in enumerate(loras):
-            #
             path = Path(path_str)
             adapter_name = f"adapter_{i}"
-            logger.info(f"Loading LoRA {i}: {path.name} as {adapter_name}")
+            # logger.info(f"Loading LoRA {i}: {path.name} as {adapter_name}")
             # We pass the PARENT directory as the first argument,
             # and the specific filename as weight_name.
             self.pipeline.load_lora_weights(
@@ -79,19 +76,18 @@ class TXTxIMG:
         logger.info(f"Active LoRAs after update: {self._active_loras}")
 
         # Set default weights
-        weights = [1.0 / len(loras)] * len(loras)
         self.pipeline.set_adapters([f"adapter_{i}" for i in range(len(loras))], adapter_weights=weights)
 
     def generate(self,
                  prompt: str,
-                 negative_prompt: str = DEFAULT_NEGATIVE_PROMPT,
+                 negative_prompt: str = "",
                  height: int = 720,
                  width: int = 720,
+                 number_of_images: int = 1,
                  num_inference_steps: int = 10,
                  guidance_scale: float = 0,
-                 seed: Optional[int] = None) -> tuple[str, float]:
+                 seed: Optional[int] = None):
 
-        inference_start = time.time()
         try:
 
             if self.pipeline is None:
@@ -103,22 +99,21 @@ class TXTxIMG:
                     negative_prompt=negative_prompt,
                     num_inference_steps=num_inference_steps,
                     guidance_scale=guidance_scale,
+                    num_images_per_prompt=number_of_images,
                     # generator=torch.Generator("cuda").manual_seed(seed),
                     height=height,
                     width=width,
                 )
 
-            image = result.images[0]
-            inference_time = (time.time() - inference_start) * 1000
-            output_path = self._get_timestamped_path(prompt)
-            image.save(output_path)
-            return str(output_path), inference_time
+            for i, img in enumerate(result.images):
+                output_path = self._get_timestamped_path(f"{prompt}_{i}")
+                img.save(output_path)
+                logger.info(f"Saved image {i} to {output_path}")
 
         except Exception as e:
             logger.error(f"Inference error: {e}")
-            return str(e), 0.0
 
-    def generate_from_config(self, config_path: str) -> tuple[str, float]:
+    def generate_from_config(self, config_path: str):
         try:
             with open(config_path, 'r') as f:
                 config = yf.safe_load(f)
@@ -126,41 +121,56 @@ class TXTxIMG:
             height = config.get('height', 720)
             width = config.get('width', 720)
 
-            num_inference_steps = config.get('num_inference_steps', 10)
+            number_of_images = config.get('number_of_images', 1)
             guidance_scale = config.get('guidance_scale', 0)
-
-            # seed = config.get('seed', None)
-            # if seed is None:
-            #     seed = int(time.time() * 1000) % 2**32
-            #     logger.info(f"Using random seed: {seed}")
+            num_inference_steps = config.get('num_inference_steps', 9)
 
             prompt = config.get('prompt', '')
-
             negative_prompt = config.get('negative_prompt', '')
-            if negative_prompt is None:
-                negative_prompt = ''
-            negative_prompt += DEFAULT_NEGATIVE_PROMPT
-            # logger.info(f"Final negative prompt: {negative_prompt}")
+            lora_root_path = config.get('lora_root_path', '')
 
-            loras = config.get('loras', [])
-            # logger.info(f"LoRAs: {loras}")
-            weights = [weight for _, weight in loras] if loras else None
-            # logger.info(f"LoRA weights: {weights}")
-            lora_paths = [path for path, _ in loras] if loras else []
-            if lora_paths:
-                self.load_loras(lora_paths, weights)
+            lora_paths = []
+            weights = []
 
-            return self.generate(
+            character = config.get('character', None)
+            if character is not None:
+                if '__CHARACTER__' in prompt:
+                    prompt = prompt.replace('__CHARACTER__', character)
+                #
+                character_lora_file = character.replace(" ", "")
+                char_lora_path = path.join(lora_root_path, 'characters',
+                                           f"{character_lora_file}.safetensors")
+                if path.exists(char_lora_path):
+                    lora_paths.append(char_lora_path)
+                    character_strength = config.get('character_strength', 0.66)
+                    weights.append(character_strength)
+
+            concept = config.get('concept', None)
+            if concept is not None:
+                if '__CONCEPT__' in prompt:
+                    prompt = prompt.replace('__CONCEPT__', concept)
+                #
+                concept_lora_file = concept.replace(" ", "")
+                concept_lora_path = path.join(lora_root_path, 'concepts',
+                                              f"{concept_lora_file}.safetensors")
+                if path.exists(concept_lora_path):
+                    lora_paths.append(concept_lora_path)
+                    concept_strength = config.get('concept_strength', 0.33)
+                    weights.append(concept_strength)
+
+            self.load_loras(lora_paths, weights)
+
+            self.generate(
                 prompt=prompt,
                 negative_prompt=negative_prompt,
                 height=height,
                 width=width,
+                number_of_images=number_of_images,
                 num_inference_steps=num_inference_steps,
                 guidance_scale=guidance_scale)
 
         except Exception as e:
             logger.error(f"Error in generate_from_config: {e}")
-            return str(e), 0.0
 
     def _get_timestamped_path(self, prompt: str) -> Path:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
