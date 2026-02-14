@@ -16,13 +16,13 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-class IMGxTXT:
+class ImageDescriber:
 
     # Model identifier
     model: str = ''
 
     def __init__(self,
-                 output_dir: str = "/root/.imgenie/img2txt"):
+                 output_dir: str = "/root/.imgenie/output"):
         # Setup output directory
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
@@ -111,7 +111,7 @@ class IMGxTXT:
 
 if __name__ == "__main__":
     # Load model and wait for user prompt.
-    server = IMGxTXT()
+    server = ImageDescriber()
     server.load_model()
 
     # # Generate image and save to disk. And wait for next prompt until user exits.

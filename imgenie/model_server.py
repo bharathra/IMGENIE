@@ -10,8 +10,8 @@ import uvicorn
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 
-from image_generator import TXTxIMG
-from image_describer import IMGxTXT
+from image_generator import ImageGenerator
+from image_describer import ImageDescriber
 from model_downloader import ModelDownloader
 
 from PIL import Image
@@ -26,8 +26,8 @@ app = FastAPI(title="IMGEN Server")
 class ModelServer:
 
     # Global model holders
-    t2i_model: Optional[TXTxIMG] = None
-    i2t_model: Optional[IMGxTXT] = None
+    t2i_model: Optional[ImageGenerator] = None
+    i2t_model: Optional[ImageDescriber] = None
     load_status: dict = {"t2i": False, "i2t": False}
 
     def __init__(self):
@@ -47,8 +47,8 @@ class ModelServer:
         t2i_out = Path(self.t2i_cfg.get("output_path", "/root/.imgenie/txt2img")).expanduser()
         i2t_out = Path(self.i2t_cfg.get("output_path", "/root/.imgenie/img2txt")).expanduser()
 
-        self.t2i_model = TXTxIMG(output_dir=str(t2i_out))
-        self.i2t_model = IMGxTXT(output_dir=str(i2t_out))
+        self.t2i_model = ImageGenerator(output_dir=str(t2i_out))
+        self.i2t_model = ImageDescriber(output_dir=str(i2t_out))
         self.model_downloader = ModelDownloader()
 
     @app.post("/load_models")

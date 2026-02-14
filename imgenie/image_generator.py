@@ -4,12 +4,12 @@ import logging
 from os import path
 from pathlib import Path
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Union
 import yaml as yf   # to avoid conflict with PyYAML
 
 import torch
-from random import seed
-from diffusers import ZImagePipeline
+from PIL import Image
+from diffusers import ZImageImg2ImgPipeline, ZImagePipeline
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -18,21 +18,22 @@ logger.setLevel(logging.INFO)
 MODEL = "/root/.cache/huggingface/hub/model--Tongyi-MAI--Z-Image-Turbo/"
 
 
-class TXTxIMG:
+class ImageGenerator:
+    """Image-to-Image editor using reference image and text prompts."""
 
     _active_loras: list = []
 
-    def __init__(self, output_dir: str = "/root/.imgenie/txt2img"):
+    def __init__(self, output_dir: str = "/root/.imgenie/output"):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        self.pipeline: Optional[ZImagePipeline] = None
+        self.pipeline: Optional[Union[ZImageImg2ImgPipeline, ZImagePipeline]] = None
 
         self.load_model(MODEL)
 
     def load_model(self, model: str) -> None:
         try:
             logger.info(f"Loading base model: {model}")
-            self.pipeline = ZImagePipeline.from_pretrained(
+            self.pipeline = ZImageImg2ImgPipeline.from_pretrained(
                 model,
                 torch_dtype=torch.bfloat16,
                 use_safetensors=True,
@@ -44,8 +45,6 @@ class TXTxIMG:
             raise e
 
     def load_loras(self, loras: list, weights: Optional[list] = None) -> None:
-        # Load LoRA adapters by their identifiers
-        #
         """Loads multiple LoRA adapters into the pipeline correctly from local files."""
         if self.pipeline is None:
             raise ValueError("Model pipeline is not loaded.")
@@ -56,14 +55,12 @@ class TXTxIMG:
             self._active_loras = []
 
         if not loras:
-            # logger.info("No LoRAs to load. Exiting load_loras.")
             return
 
         # load added loras
         for i, path_str in enumerate(loras):
             path = Path(path_str)
             adapter_name = f"adapter_{i}"
-            # logger.info(f"Loading LoRA {i}: {path.name} as {adapter_name}")
             # We pass the PARENT directory as the first argument,
             # and the specific filename as weight_name.
             self.pipeline.load_lora_weights(
@@ -78,32 +75,90 @@ class TXTxIMG:
         # Set default weights
         self.pipeline.set_adapters([f"adapter_{i}" for i in range(len(loras))], adapter_weights=weights)
 
+    def _load_reference_image(self, image_path: str) -> Image.Image:
+        """Load and validate reference image."""
+        try:
+            img = Image.open(image_path).convert('RGB')
+            # logger.info(f"Loaded reference image: {image_path}")
+
+            # resize to 720p without changing aspect ratio
+            width, height = img.size
+            img = img.resize((720, int(720 * height / width)))
+            # resize to multiple of 16
+            width, height = img.size
+            new_width = width - (width % 16)
+            new_height = height - (height % 16)
+            if new_width != width or new_height != height:
+                logger.info(f"Resizing image from {width}x{height} to {new_width}x{new_height}")
+                img = img.resize((new_width, new_height))
+
+            return img
+        except Exception as e:
+            logger.error(f"Error loading reference image: {e}")
+            raise e
+
     def generate(self,
                  prompt: str,
+                 ref_image_path: Optional[str] = None,
                  negative_prompt: str = "",
-                 height: int = 720,
-                 width: int = 720,
                  number_of_images: int = 1,
                  num_inference_steps: int = 10,
                  guidance_scale: float = 0,
-                 seed: Optional[int] = None):
+                 strength: float = 0.8,
+                 seed: Optional[int] = None,
+                 height: int = 720,
+                 width: int = 720):
+        """
+        Generate edited images based on reference image and text prompt.
+
+        Args:
+            ref_image_path: Path to the reference/input image
+            prompt: Text prompt for editing guidance
+            negative_prompt: Text prompt for what to avoid
+            number_of_images: Number of variations to generate
+            num_inference_steps: Number of diffusion steps
+            guidance_scale: How much to follow the prompt
+            strength: How much to modify the original image (0.0-1.0)
+                     0 = no change, 1 = complete regeneration
+            seed: Random seed for reproducibility
+        """
 
         try:
-
             if self.pipeline is None:
                 raise ValueError("Model pipeline is not loaded.")
 
-            with torch.no_grad():
-                result = self.pipeline(
-                    prompt=prompt,
-                    negative_prompt=negative_prompt,
-                    num_inference_steps=num_inference_steps,
-                    guidance_scale=guidance_scale,
-                    num_images_per_prompt=number_of_images,
-                    # generator=torch.Generator("cuda").manual_seed(seed),
-                    height=height,
-                    width=width,
-                )
+            # Load reference image if provided
+            if ref_image_path and path.exists(ref_image_path):
+                reference_img = self._load_reference_image(ref_image_path)
+                height = reference_img.height
+                width = reference_img.width
+                with torch.no_grad():
+                    result = self.pipeline(
+                        prompt=prompt,
+                        image=reference_img,
+                        negative_prompt=negative_prompt,
+                        num_inference_steps=num_inference_steps,
+                        guidance_scale=guidance_scale,
+                        num_images_per_prompt=number_of_images,
+                        strength=strength,
+                        height=height,
+                        width=width,
+                    )
+            else:
+
+                # Create Txt2Img pipeline sharing components
+                # logger.info("No reference image provided. Switching to Text-to-Image mode.")
+                txt2img_pipe = ZImagePipeline(**self.pipeline.components)
+                with torch.no_grad():
+                    result = txt2img_pipe(
+                        prompt=prompt,
+                        negative_prompt=negative_prompt,
+                        num_inference_steps=num_inference_steps,
+                        guidance_scale=guidance_scale,
+                        num_images_per_prompt=number_of_images,
+                        height=height,
+                        width=width,
+                    )
 
             for i, img in enumerate(result.images):
                 output_path = self._get_timestamped_path(f"{prompt}_{i}")
@@ -112,8 +167,10 @@ class TXTxIMG:
 
         except Exception as e:
             logger.error(f"Inference error: {e}")
+            raise e
 
-    def generate_from_config(self, config_path: str):
+    def read_config(self, config_path: str):
+        """Edit images from configuration file."""
         try:
             with open(config_path, 'r') as f:
                 config = yf.safe_load(f)
@@ -128,6 +185,9 @@ class TXTxIMG:
             prompt = config.get('prompt', '')
             negative_prompt = config.get('negative_prompt', '')
             lora_root_path = config.get('lora_root_path', '')
+
+            ref_image_path = config.get('ref_image_path', None)
+            ref_image_strength = config.get('ref_image_strength', 0.8)
 
             lora_paths = []
             weights = []
@@ -161,16 +221,19 @@ class TXTxIMG:
             self.load_loras(lora_paths, weights)
 
             self.generate(
+                ref_image_path=ref_image_path,
                 prompt=prompt,
                 negative_prompt=negative_prompt,
-                height=height,
-                width=width,
                 number_of_images=number_of_images,
                 num_inference_steps=num_inference_steps,
-                guidance_scale=guidance_scale)
+                guidance_scale=guidance_scale,
+                strength=ref_image_strength,
+                height=height,
+                width=width)
 
         except Exception as e:
-            logger.error(f"Error in generate_from_config: {e}")
+            logger.error(f"Error in edit_from_config: {e}")
+            raise e
 
     def _get_timestamped_path(self, prompt: str) -> Path:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -179,15 +242,12 @@ class TXTxIMG:
 
 
 if __name__ == "__main__":
-    generator = TXTxIMG()
-
-    # while True:
-    #     user_prompt = input("Prompt: ")
-    #     if user_prompt.lower() == 'exit':
-    #         break
-    #     path, t = server.generate(prompt=user_prompt, lora_weights=[0.7])  # Adjust weights as needed
-    #     print(f"Done in {t:.2f}ms: {path}")
+    generator = ImageGenerator()
 
     while True:
-        input("Press >Enter to generate image from config file...")
-        generator.generate_from_config("/root/.imgenie/prompts/prompt.yaml")
+        try:
+            input("Press Enter\n")
+            generator.read_config("/root/.imgenie/prompts/prompt.yaml")
+        except Exception as e:
+            logger.error(f"Error in edit_from_config: {e}")
+            raise e
