@@ -11,21 +11,13 @@ NC='\033[0m' # No Color
 # Get the script directory
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-echo -e "${BLUE}╔════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║         🎨 IMGENIE Web UI Server       ║${NC}"
-echo -e "${BLUE}╚════════════════════════════════════════╝${NC}"
-echo ""
-
-# Check if we're in the right directory
-if [ ! -f "$SCRIPT_DIR/imgenie_server.py" ]; then
-    echo -e "${RED}❌ Error: imgenie_server.py not found in $(pwd)${NC}"
-    exit 1
-fi
+# echo -e "${BLUE}╔════════════════════════════════════════╗${NC}"
+# echo -e "${BLUE}║         🎨 IMGENIE Web UI Server       ║${NC}"
+# echo -e "${BLUE}╚════════════════════════════════════════╝${NC}"
+# echo ""
 
 # Get port and config file from command line arguments
 PORT=${1:-5000}
-CONFIG_FILE=${2}
-
 # Check if port is available
 if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null; then
     echo -e "${RED}❌ Port $PORT is already in use${NC}"
@@ -33,9 +25,10 @@ if lsof -Pi :$PORT -sTCP:LISTEN -t >/dev/null; then
     exit 1
 fi
 
+CONFIG_FILE=${2}
 # Check if config file is provided and exists
 if [ -z "$CONFIG_FILE" ]; then
-    echo -e "${YELLOW}⚠️  No config file provided, using default${NC}"
+    # echo -e "${YELLOW}⚠️  No config file provided, using default${NC}"
     CONFIG_FILE="$SCRIPT_DIR/config/imgenie.config.default.yaml"
 fi
 
@@ -63,21 +56,21 @@ else
     CONTAINER_CONFIG_FILE="$CONFIG_FILE" 
 fi
 
-echo -e "${GREEN}✓ Config file (Host): $CONFIG_FILE${NC}"
-echo -e "${GREEN}✓ Config file (Container): $CONTAINER_CONFIG_FILE${NC}"
-echo ""
-echo -e "${GREEN}✓ All systems ready!${NC}"
-echo ""
-echo -e "${BLUE}════════════════════════════════════════${NC}"
-echo -e "${GREEN}🚀 Starting IMGENIE Web UI Server inside Docker...${NC}"
-echo -e "${BLUE}════════════════════════════════════════${NC}"
-echo ""
-echo -e "📍 ${YELLOW}Server URL:${NC} http://localhost:$PORT"
-echo -e "💻 ${YELLOW}API Base:${NC}  http://localhost:$PORT/api"
-echo -e "🐳 ${YELLOW}Container:${NC} imgenie"
-echo ""
-echo -e "${YELLOW}Press Ctrl+C to stop the server${NC}"
-echo ""
+# echo -e "${GREEN}✓ Config file (Host): $CONFIG_FILE${NC}"
+# echo -e "${GREEN}✓ Config file (Container): $CONTAINER_CONFIG_FILE${NC}"
+# echo ""
+# echo -e "${GREEN}✓ All systems ready!${NC}"
+# echo ""
+# echo -e "${BLUE}════════════════════════════════════════${NC}"
+# echo -e "${GREEN}🚀 Starting IMGENIE Web UI Server inside Docker...${NC}"
+# echo -e "${BLUE}════════════════════════════════════════${NC}"
+# echo ""
+# echo -e "📍 ${YELLOW}Server URL:${NC} http://localhost:$PORT"
+# echo -e "💻 ${YELLOW}API Base:${NC}  http://localhost:$PORT/api"
+# echo -e "🐳 ${YELLOW}Container:${NC} imgenie"
+# echo ""
+# echo -e "${YELLOW}Press Ctrl+C to stop the server${NC}"
+# echo ""
 
 # Check if container is running
 if ! docker ps | grep -q "imgenie"; then

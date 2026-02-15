@@ -1,6 +1,6 @@
 root_dir: "/root/.imgenie"
-input_path: "input"
-output_path: "output"
+input_path: "/root/.imgenie/input"
+output_path: "/root/.imgenie/output"
 
 txt2img:
   ZImageTurbo:
@@ -16,8 +16,6 @@ img2txt:
     name: "Joy Caption"
     description: "Image-to-Text description with JoyCaption model"
     model_path: "models/fancyfeast.joycaption/weights"
-    input_path: "input"
-    output_path: "output"
     threshold: 0.3
     system_prompt: "You are a helpful image captioner."
     max_new_tokens: 512

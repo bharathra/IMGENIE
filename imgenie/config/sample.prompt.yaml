@@ -9,7 +9,7 @@ num_inference_steps: 9 # does not seem to have a significant impact on the quali
 # concept: Mystic
 concept_strength: 0.33
 #
-character: Debby Ryan
+character: Jean Luc Picard
 character_strength: 0.66
 #
 # ref_image_path: test.jpg

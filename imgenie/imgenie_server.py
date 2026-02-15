@@ -10,6 +10,7 @@ import base64
 import io
 import yaml
 import time
+import logging
 from pathlib import Path
 from typing import Optional, Dict, Union, List
 
@@ -453,6 +454,19 @@ def health():
 
 def main():
     """Main entry point"""
+
+    import flask.cli
+    flask.cli.show_server_banner = lambda *args: None
+    
+    # Option A: Only show errors and warnings (Recommended)
+    # This removes the "INFO" request logs but keeps critical errors
+    logging.getLogger('werkzeug').setLevel(logging.ERROR)
+
+    # Option B: Completely disable the werkzeug logger
+    # This will stop ALL messages starting with INFO:werkzeug
+    log = logging.getLogger('werkzeug')
+    log.disabled = True
+
     global server
 
     import argparse
@@ -471,13 +485,13 @@ def main():
         if not os.path.isabs(config_path):
              config_path = os.path.abspath(config_path)
              
-        print(f"\n📂 Initializing ImgenieServer with config: {config_path}")
+        # print(f"\n📂 Initializing ImgenieServer with config: {config_path}")
 
         server = ImgenieServer(config_path=config_path)
-        print(f"✓ Server initialized")
-        print(f"  Output folder: {server.output_folder}")
-        print(f"  T2I models: {list(server.t2i_cfg.keys()) if server.t2i_cfg else 'none'}")
-        print(f"  I2T models: {list(server.i2t_cfg.keys()) if server.i2t_cfg else 'none'}")
+        # print(f"✓ Server initialized")
+        # print(f"  Output folder: {server.output_folder}")
+        # print(f"  T2I models: {list(server.t2i_cfg.keys()) if server.t2i_cfg else 'none'}")
+        # print(f"  I2T models: {list(server.i2t_cfg.keys()) if server.i2t_cfg else 'none'}")
     except Exception as e:
         print(f"✗ Failed to initialize server: {e}")
         import traceback
