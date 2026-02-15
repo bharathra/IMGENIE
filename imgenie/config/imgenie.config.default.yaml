@@ -4,7 +4,6 @@ output_path: "output"
 
 txt2img:
   ZImageTurbo:
-    id: "zimage_turbo"
     name: "ZImage Turbo"
     description: "Text-to-Image generation with ZImage model"
     model_path: "models/TongyiMAI.ZImageTurbo"
@@ -14,10 +13,9 @@ txt2img:
 
 img2txt:
   JoyCaption:
-    id: "joy_caption"
     name: "Joy Caption"
     description: "Image-to-Text description with JoyCaption model"
-    model_path: "models/fancyfeast.joycaption"
+    model_path: "models/fancyfeast.joycaption/weights"
     input_path: "input"
     output_path: "output"
     threshold: 0.3

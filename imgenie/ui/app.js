@@ -2,7 +2,8 @@
 // CONFIGURATION & CONSTANTS
 // ===========================
 
-const API_BASE = 'http://localhost:8000';
+// API endpoint is relative to where the page is served from
+const API_BASE = '/api';
 let IMGENIE_CONFIG = null;
 
 // ===========================
@@ -15,8 +16,6 @@ const appState = {
     modelLoaded: false,
     isGenerating: false,
     settings: {},
-    gpuMemoryUsed: 0,
-    maxGpuMemory: 8,
     availableModels: [],
     availableResolutions: []
 };
@@ -30,6 +29,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadAppConfig();
     attachEventListeners();
     await populateModels();
+
+    // Check initial model status
+    await checkModelStatus();
+
     updateTaskInputs(); // Initialize task-specific UI
     updateUIState();
 });
@@ -40,7 +43,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function loadAppConfig() {
     try {
-        const response = await fetch('/api/app-config');
+        const response = await fetch(`${API_BASE}/app-config`);
         if (response.ok) {
             IMGENIE_CONFIG = await response.json();
             console.log('✓ IMGENIE config loaded:', IMGENIE_CONFIG);
@@ -54,25 +57,28 @@ async function loadAppConfig() {
 
 async function populateModels() {
     try {
-        const response = await fetch(`/api/models?task=${appState.currentTask}`);
+        const response = await fetch(`${API_BASE}/models?task=${appState.currentTask}`);
         if (response.ok) {
             appState.availableModels = await response.json();
             updateModelDropdown();
         }
     } catch (error) {
         console.error('Error loading models:', error);
+        showToast('Error loading models list', 'error');
     }
 }
 
 function updateModelDropdown() {
     const select = document.getElementById('modelSelect');
-    const placeholder = select.querySelector('option:first-child');
-    
+
+    // Save current selection if possible
+    const currentSelection = select.value;
+
     // Remove existing options except placeholder
     while (select.options.length > 1) {
         select.remove(1);
     }
-    
+
     // Add models from config
     appState.availableModels.forEach(model => {
         const option = document.createElement('option');
@@ -80,12 +86,16 @@ function updateModelDropdown() {
         option.textContent = model.name || model.id;
         select.appendChild(option);
     });
+
+    // Restore selection if it exists in new list
+    if (currentSelection && appState.availableModels.some(m => m.id === currentSelection)) {
+        select.value = currentSelection;
+    }
 }
 
 async function updateResolutionsForModel(modelId) {
     try {
-        const configTask = appState.currentTask === 'text-to-image' ? 'txt2img' : 'img2txt';
-        const response = await fetch(`/api/models/${modelId}/resolutions?task=${appState.currentTask}`);
+        const response = await fetch(`${API_BASE}/models/${modelId}/resolutions?task=${appState.currentTask}`);
         if (response.ok) {
             const data = await response.json();
             appState.availableResolutions = data.resolutions || [];
@@ -93,7 +103,8 @@ async function updateResolutionsForModel(modelId) {
         }
     } catch (error) {
         console.error('Error loading resolutions:', error);
-        appState.availableResolutions = ['512x512', '768x768', '1024x1024'];
+        // Fallback
+        appState.availableResolutions = ['720x720', '1024x1024'];
         updateResolutionSelect();
     }
 }
@@ -101,16 +112,47 @@ async function updateResolutionsForModel(modelId) {
 function updateResolutionSelect() {
     const resSelect = document.getElementById('resolutionSelect');
     resSelect.innerHTML = '';
-    
+
     appState.availableResolutions.forEach(res => {
         const option = document.createElement('option');
         option.value = res;
         option.textContent = res;
         resSelect.appendChild(option);
     });
-    
+
     if (resSelect.options.length > 0) {
         resSelect.selectedIndex = 0;
+    }
+}
+
+async function checkModelStatus() {
+    try {
+        const response = await fetch(`${API_BASE}/model/status`);
+        if (response.ok) {
+            const status = await response.json();
+
+            // Update state based on current task
+            const taskKey = appState.currentTask === 'text-to-image' ? 't2i' : 'i2t';
+            const modelKey = appState.currentTask === 'text-to-image' ? 't2i_model' : 'i2t_model';
+
+            appState.modelLoaded = status[taskKey];
+            const loadedModelId = status[modelKey];
+
+            if (appState.modelLoaded && loadedModelId) {
+                appState.selectedModel = loadedModelId;
+                const select = document.getElementById('modelSelect');
+                if (select) select.value = loadedModelId;
+
+                document.getElementById('modelStatus').textContent = 'Loaded ✓';
+                document.getElementById('modelStatus').className = 'status-value loaded';
+            } else {
+                document.getElementById('modelStatus').textContent = 'Not Loaded';
+                document.getElementById('modelStatus').className = 'status-value unloaded';
+            }
+            updateUIState();
+        }
+    } catch (e) {
+        console.error("Failed to check status", e);
     }
 }
 
@@ -138,7 +180,6 @@ document.getElementById('themeToggle').addEventListener('click', () => {
     const currentTheme = document.documentElement.getAttribute('data-theme');
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
-    showToast(`Switched to ${newTheme} mode`, 'info');
 });
 
 // ===========================
@@ -183,7 +224,7 @@ function attachEventListeners() {
 
     // Generation
     document.getElementById('generateBtn').addEventListener('click', handleGenerate);
-    document.getElementById('cancelBtn').addEventListener('click', handleCancel);
+    // document.getElementById('cancelBtn').addEventListener('click', handleCancel); // Cancel not impl in backend yet
 
     // Results actions
     document.getElementById('saveImageBtn')?.addEventListener('click', handleSaveImage);
@@ -196,8 +237,6 @@ function attachEventListeners() {
     document.getElementById('settingsBtn').addEventListener('click', openSettings);
     document.getElementById('closeSettingsBtn').addEventListener('click', closeSettings);
     document.getElementById('cancelSettingsBtn').addEventListener('click', closeSettings);
-    document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
-    document.getElementById('resetSettingsBtn').addEventListener('click', resetSettings);
 
     // Modal close on background click
     document.getElementById('settingsModal').addEventListener('click', (e) => {
@@ -209,11 +248,12 @@ function attachEventListeners() {
 // TASK MANAGEMENT
 // ===========================
 
-function handleTaskChange(e) {
+async function handleTaskChange(e) {
     appState.currentTask = e.target.value;
     updateTaskInputs();
     updateGenerationUI(); // Update button text immediately
-    populateModels(); // Reload models for new task
+    await populateModels(); // Reload models for new task
+    await checkModelStatus(); // Check if model for new task is loaded
     updateUIState();
 }
 
@@ -226,7 +266,7 @@ function updateTaskInputs() {
     if (activeSection) {
         activeSection.classList.add('active');
     }
-    
+
     // Show/hide txt2img-only parameters
     const txt2imgParams = document.querySelectorAll('.txt2img-only');
     if (appState.currentTask === 'text-to-image') {
@@ -246,12 +286,12 @@ function updateTaskInputs() {
 
 function handleModelSelect(e) {
     appState.selectedModel = e.target.value;
-    
+
     // Load resolutions for selected model
     if (appState.selectedModel) {
         updateResolutionsForModel(appState.selectedModel);
     }
-    
+
     // Show model details
     if (appState.selectedModel) {
         const model = appState.availableModels.find(m => m.id === appState.selectedModel);
@@ -262,7 +302,7 @@ function handleModelSelect(e) {
     } else {
         document.getElementById('modelDetailsPlaceholder').textContent = 'Select a model to view details';
     }
-    
+
     updateUIState();
 }
 
@@ -272,56 +312,77 @@ async function handleLoadModel() {
         return;
     }
 
-    document.getElementById('loadModelBtn').disabled = true;
+    const loadBtn = document.getElementById('loadModelBtn');
+    loadBtn.disabled = true;
+    loadBtn.textContent = 'Loading...';
+
     document.getElementById('modelStatus').textContent = 'Loading...';
     document.getElementById('modelStatus').className = 'status-value loading';
 
     try {
-        // Simulate API call
-        await simulateModelLoad();
-        
-        appState.modelLoaded = true;
-        document.getElementById('modelStatus').textContent = 'Loaded ✓';
-        document.getElementById('modelStatus').className = 'status-value loaded';
-        
-        // Simulate memory usage
-        updateMemoryUsage(4.2, 8);
-        
-        showToast(`Model "${appState.selectedModel}" loaded successfully`, 'success');
-        updateUIState();
+        const response = await fetch(`${API_BASE}/model/load`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                model_id: appState.selectedModel,
+                task: appState.currentTask
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            appState.modelLoaded = true;
+            document.getElementById('modelStatus').textContent = 'Loaded ✓';
+            document.getElementById('modelStatus').className = 'status-value loaded';
+            showToast(`Model "${appState.selectedModel}" loaded successfully`, 'success');
+        } else {
+            throw new Error(result.error || 'Unknown error');
+        }
     } catch (error) {
         document.getElementById('modelStatus').textContent = 'Error';
         document.getElementById('modelStatus').className = 'status-value unloaded';
-        showToast('Failed to load model', 'error');
+        showToast(`Failed to load model: ${error.message}`, 'error');
+    } finally {
+        loadBtn.textContent = '📥 Load Model';
         updateUIState();
     }
 }
 
 async function handleUnloadModel() {
-    document.getElementById('unloadModelBtn').disabled = true;
-    document.getElementById('modelStatus').textContent = 'Unloading...';
+    const unloadBtn = document.getElementById('unloadModelBtn');
+    unloadBtn.disabled = true;
+    unloadBtn.textContent = 'Unloading...';
 
     try {
-        await simulateModelUnload();
-        
-        appState.modelLoaded = false;
-        document.getElementById('modelStatus').textContent = 'Not Loaded';
-        document.getElementById('modelStatus').className = 'status-value unloaded';
-        updateMemoryUsage(0, 8);
-        
-        showToast('Model unloaded successfully', 'success');
-        updateUIState();
+        const response = await fetch(`${API_BASE}/model/unload`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                task: appState.currentTask
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            appState.modelLoaded = false;
+            document.getElementById('modelStatus').textContent = 'Not Loaded';
+            document.getElementById('modelStatus').className = 'status-value unloaded';
+            showToast('Model unloaded successfully', 'success');
+        } else {
+            throw new Error(result.error);
+        }
     } catch (error) {
-        showToast('Failed to unload model', 'error');
+        showToast(`Failed to unload model: ${error.message}`, 'error');
+    } finally {
+        unloadBtn.textContent = '📤 Unload Model';
         updateUIState();
     }
-}
-
-function updateMemoryUsage(used, max) {
-    const percent = Math.round((used / max) * 100);
-    document.getElementById('memoryPercent').textContent = percent + '%';
-    document.getElementById('memoryFill').style.width = percent + '%';
-    document.getElementById('memoryText').textContent = `${used.toFixed(2)} GB / ${max} GB`;
 }
 
 // ===========================
@@ -350,7 +411,7 @@ function setupFileUpload(uploadAreaId, fileInputId, previewId) {
         e.preventDefault();
         uploadArea.style.borderColor = '';
         uploadArea.style.background = '';
-        
+
         const files = e.dataTransfer.files;
         if (files.length > 0) {
             fileInput.files = files;
@@ -406,91 +467,73 @@ async function handleGenerate() {
     appState.isGenerating = true;
     updateGenerationUI();
 
+    // Show progress bar (indeterminate)
+    const progressFill = document.getElementById('generationProgressFill');
+    progressFill.style.width = '100%';
+    progressFill.classList.add('indeterminate');
+    document.getElementById('progressText').textContent = 'Processing... check server logs for details';
+    document.getElementById('timeRemaining').textContent = '';
+
     try {
+        let response;
+
         if (appState.currentTask === 'text-to-image') {
-            // Text-to-Image generation
-            const generationData = {
+            const payload = {
                 task: appState.currentTask,
                 model: appState.selectedModel,
                 steps: document.getElementById('stepsSlider').value,
                 guidance_scale: document.getElementById('guidanceSlider').value,
                 resolution: document.getElementById('resolutionSelect').value,
-                seed: document.getElementById('seedInput').value || null,
-                prompt: document.getElementById('promptInput').value,
-                timestamp: new Date().toISOString()
+                seed: document.getElementById('seedInput').value || -1,
+                prompt: document.getElementById('promptInput').value
             };
 
-            // Simulate generation process
-            await simulateGeneration(generationData);
-
-            // Call backend
-            const response = await fetch('/api/generate', {
+            response = await fetch(`${API_BASE}/generate`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(generationData)
+                body: JSON.stringify(payload)
             });
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Generation failed');
-            }
-
-            const result = await response.json();
-            
-            // Mock generated image
-            const mockImageUrl = generateMockImage(
-                document.getElementById('resolutionSelect').value,
-                document.getElementById('promptInput').value
-            );
-
-            displayResults(mockImageUrl, generationData);
-            showToast('Image generated successfully!', 'success');
-        } else if (appState.currentTask === 'image-to-text') {
-            // Image-to-Text generation
+        } else {
             const imageFile = document.getElementById('imageForDesc').files[0];
             const formData = new FormData();
             formData.append('task', appState.currentTask);
             formData.append('model', appState.selectedModel);
             formData.append('image', imageFile);
 
-            // Simulate generation process
-            await simulateGeneration({ task: appState.currentTask, model: appState.selectedModel });
-
-            // Call backend
-            const response = await fetch('/api/generate', {
+            response = await fetch(`${API_BASE}/generate`, {
                 method: 'POST',
                 body: formData
             });
+        }
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || 'Description generation failed');
-            }
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || error.message || 'Generation failed');
+        }
 
-            const result = await response.json();
-            const description = result.description || 'No description generated';
-            
-            displayDescription(description, {
-                task: appState.currentTask,
-                model: appState.selectedModel,
-                timestamp: new Date().toISOString()
+        const result = await response.json();
+
+        if (appState.currentTask === 'text-to-image') {
+            displayResults(result.image, result.params || {});
+            showToast('Image generated successfully!', 'success');
+        } else {
+            displayDescription(result.description, {
+                model: appState.selectedModel
             });
             showToast('Image described successfully!', 'success');
         }
+
     } catch (error) {
         console.error('Generation error:', error);
         showToast('Operation failed: ' + error.message, 'error');
     } finally {
         appState.isGenerating = false;
+        progressFill.classList.remove('indeterminate');
         updateGenerationUI();
     }
 }
 
-function handleCancel() {
-    appState.isGenerating = false;
-    updateGenerationUI();
-    showToast('Generation cancelled', 'info');
-}
 
 function updateGenerationUI() {
     const generateBtn = document.getElementById('generateBtn');
@@ -501,40 +544,33 @@ function updateGenerationUI() {
     const isTextToImage = appState.currentTask === 'text-to-image';
     const taskName = isTextToImage ? 'Generate Image' : 'Describe Image';
     const taskEmoji = isTextToImage ? '✨' : '📝';
-    
-    generateBtn.innerHTML = taskEmoji + ' ' + taskName;
 
     if (appState.isGenerating) {
         generateBtn.style.display = 'none';
-        cancelBtn.style.display = 'block';
-        cancelBtn.innerHTML = '⏹ Cancel ' + taskName;
+        cancelBtn.style.display = 'none'; // Backend doesn't support cancel yet
         progressContainer.style.display = 'flex';
     } else {
+        generateBtn.innerHTML = taskEmoji + ' ' + taskName;
         generateBtn.style.display = 'block';
         cancelBtn.style.display = 'none';
         progressContainer.style.display = 'none';
     }
 }
 
-function displayResults(imageUrl, metadata) {
+function displayResults(imageUrl, params) {
     const resultsSection = document.getElementById('resultsSection');
     const imageElement = document.getElementById('generatedImage');
-    
-    // Ensure image is visible
-    imageElement.style.display = 'block';
-    
-    // Hide description if it exists
     const descContainer = document.getElementById('descriptionContainer');
-    if (descContainer) {
-        descContainer.style.display = 'none';
-    }
-    
+
+    if (descContainer) descContainer.style.display = 'none';
+    imageElement.style.display = 'block';
+
     imageElement.src = imageUrl;
-    
-    document.getElementById('metaModel').textContent = metadata.model;
+
+    document.getElementById('metaModel').textContent = appState.selectedModel || 'Unknown';
     document.getElementById('metaTime').textContent = new Date().toLocaleTimeString();
-    document.getElementById('metaResolution').textContent = `${metadata.resolution}`;
-    
+    document.getElementById('metaResolution').textContent = params.resolution || 'Unknown';
+
     resultsSection.style.display = 'block';
     resultsSection.scrollIntoView({ behavior: 'smooth' });
 }
@@ -542,11 +578,9 @@ function displayResults(imageUrl, metadata) {
 function displayDescription(description, metadata) {
     const resultsSection = document.getElementById('resultsSection');
     const imageElement = document.getElementById('generatedImage');
-    
-    // Hide image and show description instead
+
     imageElement.style.display = 'none';
-    
-    // Create or update description container
+
     let descContainer = document.getElementById('descriptionContainer');
     if (!descContainer) {
         descContainer = document.createElement('div');
@@ -554,18 +588,19 @@ function displayDescription(description, metadata) {
         descContainer.className = 'description-container';
         imageElement.parentNode.insertBefore(descContainer, imageElement);
     }
-    
+
     descContainer.innerHTML = `
         <div class="description-text">
+            <h3>Image Description</h3>
             <p>${description}</p>
         </div>
     `;
     descContainer.style.display = 'flex';
-    
+
     document.getElementById('metaModel').textContent = metadata.model;
     document.getElementById('metaTime').textContent = new Date().toLocaleTimeString();
-    document.getElementById('metaResolution').textContent = 'Image Analysis';
-    
+    document.getElementById('metaResolution').textContent = 'N/A';
+
     resultsSection.style.display = 'block';
     resultsSection.scrollIntoView({ behavior: 'smooth' });
 }
@@ -576,7 +611,6 @@ function handleSaveImage() {
     link.href = image.src;
     link.download = `imgenie-${Date.now()}.png`;
     link.click();
-    showToast('Image saved to downloads', 'success');
 }
 
 function handleCopyMetadata() {
@@ -604,58 +638,10 @@ function handleCopyMetadata() {
 
 function openSettings() {
     document.getElementById('settingsModal').classList.add('active');
-    loadSettingsUI();
 }
 
 function closeSettings() {
     document.getElementById('settingsModal').classList.remove('active');
-}
-
-function loadSettingsUI() {
-    // Load from config that was fetched earlier
-    document.getElementById('apiEndpoint').value = 'http://localhost:8000';
-    document.getElementById('cacheDir').value = '/home/models';
-    document.getElementById('defaultRes').value = '512';
-    document.getElementById('autoLoadModel').checked = false;
-    document.getElementById('maxGpuMemory').value = 8;
-    
-    updateCachedModelsList();
-}
-
-function saveSettings() {
-    // Settings would be synced to server config
-    closeSettings();
-    showToast('Settings will be applied on server restart', 'info');
-}
-
-function resetSettings() {
-    if (confirm('Are you sure you want to reset all settings to defaults?')) {
-        showToast('Settings would be reset on server restart', 'info');
-        closeSettings();
-    }
-}
-
-function updateCachedModelsList() {
-    const list = document.getElementById('cachedModelsList');
-    // This would come from the backend
-    const models = [];
-    
-    if (models.length === 0) {
-        list.innerHTML = '<p class="info-text">No cached models</p>';
-        return;
-    }
-    
-    list.innerHTML = models.map(model => `
-        <div class="model-item">
-            <span>${model}</span>
-            <button class="model-item-delete" onclick="deleteModel('${model}')">Delete</button>
-        </div>
-    `).join('');
-}
-
-function deleteModel(model) {
-    showToast(`Deleted ${model}`, 'success');
-    updateCachedModelsList();
 }
 
 // ===========================
@@ -669,11 +655,19 @@ function updateUIState() {
 
     if (appState.modelLoaded) {
         loadBtn.disabled = true;
+        loadBtn.style.display = 'none';
+
         unloadBtn.disabled = false;
+        unloadBtn.style.display = 'inline-block';
+
         generateBtn.disabled = false;
     } else {
         loadBtn.disabled = !appState.selectedModel;
+        loadBtn.style.display = 'inline-block';
+
         unloadBtn.disabled = true;
+        unloadBtn.style.display = 'none';
+
         generateBtn.disabled = true;
     }
 }
@@ -686,7 +680,7 @@ function showToast(message, type = 'info', duration = 3000) {
     const container = document.getElementById('toastContainer');
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    
+
     const icon = {
         success: '✓',
         error: '✕',
@@ -702,114 +696,3 @@ function showToast(message, type = 'info', duration = 3000) {
         setTimeout(() => toast.remove(), 300);
     }, duration);
 }
-
-// ===========================
-// SIMULATION FUNCTIONS
-// ===========================
-
-function simulateModelLoad() {
-    return new Promise((resolve) => {
-        setTimeout(resolve, 1500);
-    });
-}
-
-function simulateModelUnload() {
-    return new Promise((resolve) => {
-        setTimeout(resolve, 800);
-    });
-}
-
-async function simulateGeneration(data) {
-    const startTime = Date.now();
-    const steps = parseInt(data.steps);
-    const totalDuration = steps * 200; // 200ms per step
-    
-    return new Promise((resolve) => {
-        const progressFill = document.getElementById('generationProgressFill');
-        const progressText = document.getElementById('progressText');
-        const timeRemaining = document.getElementById('timeRemaining');
-        
-        const interval = setInterval(() => {
-            const elapsed = Date.now() - startTime;
-            const progress = Math.min(elapsed / totalDuration, 0.95);
-            
-            progressFill.style.width = (progress * 100) + '%';
-            progressText.textContent = `Processing... Step ${Math.floor(progress * steps)} of ${steps}`;
-            
-            const remaining = Math.max(0, totalDuration - elapsed);
-            timeRemaining.textContent = `Time remaining: ${Math.round(remaining / 1000)}s`;
-            
-            if (elapsed >= totalDuration) {
-                clearInterval(interval);
-                progressFill.style.width = '100%';
-                progressText.textContent = 'Processing... Complete!';
-                timeRemaining.textContent = 'Time remaining: 0s';
-                setTimeout(resolve, 500);
-            }
-        }, 100);
-    });
-}
-
-function generateMockImage(resolution, prompt) {
-    // Create a canvas with a gradient and text
-    const canvas = document.createElement('canvas');
-    const size = parseInt(resolution);
-    canvas.width = size;
-    canvas.height = size;
-    
-    const ctx = canvas.getContext('2d');
-    
-    // Create gradient background
-    const gradient = ctx.createLinearGradient(0, 0, size, size);
-    gradient.addColorStop(0, '#1a1a2e');
-    gradient.addColorStop(0.5, '#16213e');
-    gradient.addColorStop(1, '#0f3460');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, size, size);
-    
-    // Add some visual elements
-    ctx.fillStyle = 'rgba(0, 212, 255, 0.2)';
-    for (let i = 0; i < 5; i++) {
-        ctx.beginPath();
-        ctx.arc(
-            Math.random() * size,
-            Math.random() * size,
-            Math.random() * 100 + 20,
-            0,
-            Math.PI * 2
-        );
-        ctx.fill();
-    }
-    
-    // Add text
-    ctx.fillStyle = 'rgba(0, 212, 255, 0.5)';
-    ctx.font = `bold ${Math.floor(size / 12)}px "M Plus 2", sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('🖼️ IMGENIE', size / 2, size / 3);
-    
-    if (prompt) {
-        ctx.font = `${Math.floor(size / 20)}px "M Plus 2", sans-serif`;
-        ctx.fillStyle = 'rgba(200, 200, 200, 0.4)';
-        const words = prompt.split(' ').slice(0, 3).join(' ');
-        ctx.fillText(words, size / 2, size / 1.5);
-    }
-    
-    return canvas.toDataURL('image/png');
-}
-
-// ===========================
-// UTILITY FUNCTIONS
-// ===========================
-
-function formatBytes(bytes) {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
-}
-
-// Export for use in console
-window.appState = appState;
-window.showToast = showToast;

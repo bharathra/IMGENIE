@@ -2,15 +2,16 @@
 
 """
 IMGENIE Web UI Server - Simple Flask wrapper
-Uses ModelServer config and creates model instances as needed
 """
 
 import os
 import sys
 import base64
 import io
+import yaml
+import time
 from pathlib import Path
-from typing import Optional, Dict, Union
+from typing import Optional, Dict, Union, List
 
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
@@ -19,28 +20,64 @@ from PIL import Image
 
 from image_describer import ImageDescriber
 from image_generator import ImageGenerator
-from imgenie.server_old import ModelServer, ModelType
 
 # ========================
-# SETUP
+# CONFIG & STATE
 # ========================
 
-app = Flask(__name__, static_folder='.', static_url_path='')
+class ImgenieServer:
+    """Manage model loading and generation"""
+    
+    def __init__(self, config_path: str):
+        self.config_path = Path(config_path)
+        self.config = self._load_config()
+        
+        self.output_folder = Path(self.config.get('output_path', '/root/.imgenie/output'))
+        self.input_folder = Path(self.config.get('input_path', '/root/.imgenie/input'))
+        self.lora_path = Path(self.config.get('lora_path', '/root/.imgenie/loras')) # Default fallback
+        
+        # Create directories
+        self.output_folder.mkdir(parents=True, exist_ok=True)
+        self.input_folder.mkdir(parents=True, exist_ok=True)
+        
+        # Load model configs
+        self.t2i_cfg = self.config.get('txt2img', {})
+        self.i2t_cfg = self.config.get('img2txt', {})
+        
+        # Current loaded models
+        self.t2i_model: Optional[ImageGenerator] = None
+        self.i2t_model: Optional[ImageDescriber] = None
+        self.current_t2i_id: Optional[str] = None
+        self.current_i2t_id: Optional[str] = None
+
+    def _load_config(self) -> dict:
+        if not self.config_path.exists():
+            print(f"Config file not found: {self.config_path}")
+            return {}
+        try:
+            with open(self.config_path, 'r') as f:
+                return yaml.safe_load(f) or {}
+        except Exception as e:
+            print(f"Error loading config: {e}")
+            return {}
+
+server: Optional['ImgenieServer'] = None
+
+# ========================
+# SETUP FLASK
+# ========================
+
+app = Flask(__name__, static_folder='ui', static_url_path='/ui')
 CORS(app)
 
-UI_DIR = Path(__file__).parent
+UI_DIR = Path(__file__).parent / 'ui'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 UPLOAD_FOLDER = '/tmp/imgenie_uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-server = None
-current_models: Dict[str, Optional[Union[ImageGenerator, ImageDescriber]]] = {
-    't2i': None, 'i2t': None}  # Store currently loaded models
-
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
 
 # ========================
 # UI ROUTES
@@ -50,6 +87,13 @@ def allowed_file(filename):
 def index():
     return send_from_directory(UI_DIR, 'index.html')
 
+@app.route('/app.js')
+def serve_app_js():
+    return send_from_directory(UI_DIR, 'app.js')
+
+@app.route('/ui/<path:path>')
+def send_ui(path):
+    return send_from_directory(UI_DIR, path)
 
 # ========================
 # API ROUTES
@@ -73,22 +117,10 @@ def get_app_config():
     if not server:
         return jsonify({})
 
-    config = {}
-
-    # Extract txt2img models
-    if server.t2i_cfg and isinstance(server.t2i_cfg, dict):
-        config['txt2img'] = {}
-        for name, cfg in server.t2i_cfg.items():
-            if isinstance(cfg, dict):
-                config['txt2img'][name] = cfg
-
-    # Extract img2txt models
-    if server.i2t_cfg and isinstance(server.i2t_cfg, dict):
-        config['img2txt'] = {}
-        for name, cfg in server.i2t_cfg.items():
-            if isinstance(cfg, dict):
-                config['img2txt'][name] = cfg
-
+    config = {
+        'txt2img': server.t2i_cfg,
+        'img2txt': server.i2t_cfg
+    }
     return jsonify(config)
 
 
@@ -102,7 +134,7 @@ def get_models():
 
     models = []
 
-    if task == 'text-to-image' and isinstance(server.t2i_cfg, dict):
+    if task == 'text-to-image':
         for model_id, cfg in server.t2i_cfg.items():
             if isinstance(cfg, dict):
                 models.append({
@@ -112,7 +144,7 @@ def get_models():
                     'model_path': cfg.get('model_path', '')
                 })
 
-    elif task == 'image-to-text' and isinstance(server.i2t_cfg, dict):
+    elif task == 'image-to-text':
         for model_id, cfg in server.i2t_cfg.items():
             if isinstance(cfg, dict):
                 models.append({
@@ -163,11 +195,11 @@ def load_model():
 
         # Get the actual model path from config
         if task == 'text-to-image':
-            configs = server.t2i_cfg or {}
-            model_key = 't2i'
+            configs = server.t2i_cfg
+            current_loaded = server.current_t2i_id
         else:
-            configs = server.i2t_cfg or {}
-            model_key = 'i2t'
+            configs = server.i2t_cfg
+            current_loaded = server.current_i2t_id
 
         if model_id not in configs:
             available = list(configs.keys())
@@ -175,43 +207,85 @@ def load_model():
                 'success': False,
                 'error': f'Model {model_id} not found. Available: {available}'
             }), 400
+            
+        if current_loaded == model_id:
+             return jsonify({
+                'success': True,
+                'message': f'Model {model_id} already loaded',
+                'model': model_id,
+                'task': task
+            })
 
         model_config = configs[model_id]
         model_path = model_config.get('model_path', model_id)
+        
+        # Resolve model path relative to root if needed (optional logic, keeping simple for now)
+        # Assuming model_path is relative to /root/.imgenie or absolute
+        if not os.path.isabs(model_path):
+             # Try appending to root_dir if available in config
+             root_dir = server.config.get('root_dir')
+             if root_dir:
+                 potential_path = os.path.join(root_dir, model_path)
+                 if os.path.exists(potential_path):
+                     model_path = potential_path
+
 
         # Create and load model instance
         try:
-            if model_key == 't2i':
-                current_models['t2i'] = ImageGenerator(
+            if task == 'text-to-image':
+                # Unload previous logic not strictly needed if we just overwrite, but good practice
+                if server.t2i_model:
+                     try: server.t2i_model.unload_model()
+                     except: pass
+                
+                # Get lora path for this specific model if defined, else global
+                lora_path = model_config.get('lora_path', str(server.lora_path))
+                if not os.path.isabs(lora_path) and server.config.get('root_dir'):
+                     lora_path = os.path.join(server.config.get('root_dir'), lora_path)
+                
+                server.t2i_model = ImageGenerator(
                     model_path=model_path,
                     input_dir=str(server.input_folder),
                     output_dir=str(server.output_folder),
-                    lora_path=str(server.lora_path)
+                    lora_path=lora_path
                 )
-                current_models['t2i'].load_model()
-                status = True
+                if server.t2i_model.load_model():
+                    server.current_t2i_id = model_id
+                    status = True
+                else:
+                    status = False
+                    
             else:
-                current_models['i2t'] = ImageDescriber(
+                if server.i2t_model:
+                     try: server.i2t_model.unload_model() 
+                     except: pass
+
+                server.i2t_model = ImageDescriber(
                     model_path=model_path,
                     input_dir=str(server.input_folder),
                     output_dir=str(server.output_folder)
                 )
-                current_models['i2t'].load_model()
-                status = True
+                if server.i2t_model.load_model():
+                    server.current_i2t_id = model_id
+                    status = True
+                else:
+                    status = False
 
         except Exception as load_err:
             print(f"Failed to load model: {load_err}")
             import traceback
             traceback.print_exc()
-            status = False
             return jsonify({
                 'success': False,
                 'error': f'Failed to load model: {str(load_err)}'
             }), 500
 
+        if not status:
+             return jsonify({'success': False, 'error': 'Model load returned false'}), 500
+
         return jsonify({
-            'success': status,
-            'message': f'Model {model_id} loaded' if status else f'Failed to load {model_id}',
+            'success': True,
+            'message': f'Model {model_id} loaded',
             'model': model_id,
             'task': task
         })
@@ -230,14 +304,16 @@ def unload_model():
         data = request.get_json() or {}
         task = data.get('task', 'text-to-image')
 
-        model_key = 't2i' if task == 'text-to-image' else 'i2t'
-
-        if current_models[model_key]:
-            try:
-                current_models[model_key].unload_model()
-            except:
-                pass
-            current_models[model_key] = None
+        if task == 'text-to-image':
+            if server.t2i_model:
+                server.t2i_model.unload_model()
+                server.t2i_model = None
+                server.current_t2i_id = None
+        else:
+            if server.i2t_model:
+                server.i2t_model.unload_model()
+                server.i2t_model = None
+                server.current_i2t_id = None
 
         return jsonify({'success': True, 'message': 'Model unloaded'})
 
@@ -249,8 +325,10 @@ def unload_model():
 def model_status():
     """Get model status"""
     return jsonify({
-        't2i': current_models['t2i'] is not None,
-        'i2t': current_models['i2t'] is not None
+        't2i': server.current_t2i_id is not None,
+        'i2t': server.current_i2t_id is not None,
+        't2i_model': server.current_t2i_id,
+        'i2t_model': server.current_i2t_id
     })
 
 
@@ -261,43 +339,47 @@ def generate():
         if not server:
             return jsonify({'success': False, 'error': 'Server not initialized'}), 500
 
-        data = request.json or {}
+        data = request.json or request.form
         task = data.get('task', 'text-to-image')
+        
+        # Handle FormData for image upload
+        if request.files:
+             task = request.form.get('task', 'image-to-text')
 
         if task == 'text-to-image':
             # Text-to-image generation
-            if not current_models['t2i']:
+            if not server.t2i_model:
                 return jsonify({'success': False, 'error': 'T2I model not loaded'}), 400
 
             prompt = data.get('prompt', '')
-            steps = data.get('steps', 30)
-            guidance_scale = data.get('guidance_scale', 7.5)
-            resolution = data.get('resolution', ['720', '720'])
-            seed = data.get('seed', -1)
+            steps = int(data.get('steps', 30))
+            guidance_scale = float(data.get('guidance_scale', 7.5))
+            resolution = data.get('resolution', '720x720')
+            seed = data.get('seed', '')
+            
+            try:
+                seed = int(seed) if seed else -1
+            except:
+                seed = -1
 
             if not prompt:
                 return jsonify({'success': False, 'error': 'Prompt required'}), 400
 
-            # Convert resolution to integers
+            # Parse resolution
             try:
-                if isinstance(resolution, list) and len(resolution) >= 2:
-                    if isinstance(resolution[0], str):
-                        height, width = int(resolution[0]), int(resolution[1])
-                    else:
-                        height, width = resolution[0], resolution[1]
+                if isinstance(resolution, str) and 'x' in resolution:
+                    w, h = resolution.split('x')
+                    width, height = int(w), int(h)
+                elif isinstance(resolution, list):
+                    width, height = int(resolution[0]), int(resolution[1])
                 else:
-                    height, width = 720, 720
-            except (ValueError, TypeError):
-                height, width = 720, 720
+                     width, height = 720, 720
+            except:
+                width, height = 720, 720
 
-            # Get list of files before generation
-            output_dir = server.output_folder
-            output_dir.mkdir(parents=True, exist_ok=True)
-            files_before = set(os.listdir(str(output_dir)))
-
-            # Call backend generate
+            # Call generate
             try:
-                current_models['t2i'].generate(
+                output_paths = server.t2i_model.generate(
                     prompt=prompt,
                     num_inference_steps=steps,
                     guidance_scale=guidance_scale,
@@ -305,38 +387,29 @@ def generate():
                     width=width,
                     seed=seed if seed >= 0 else None
                 )
-            except TypeError:
-                # Fallback - try without resolution parameters
-                current_models['t2i'].generate(
-                    prompt=prompt,
-                    num_inference_steps=steps,
-                    guidance_scale=guidance_scale
-                )
+                
+                if output_paths and len(output_paths) > 0:
+                    latest = output_paths[-1] # Get the last generated image
+                    with open(latest, 'rb') as f:
+                        img_base64 = base64.b64encode(f.read()).decode('utf-8')
 
-            # Find the newly generated image
-            files_after = set(os.listdir(str(output_dir)))
-            new_files = files_after - files_before
-
-            # Filter for image files
-            image_files = [f for f in new_files if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp'))]
-
-            if image_files:
-                # Get the most recent
-                latest = max([str(output_dir / f) for f in image_files], key=os.path.getctime)
-                with open(latest, 'rb') as f:
-                    img_base64 = base64.b64encode(f.read()).decode('utf-8')
-
-                return jsonify({
-                    'success': True,
-                    'image': f'data:image/png;base64,{img_base64}',
-                    'params': {'prompt': prompt, 'steps': steps, 'guidance_scale': guidance_scale, 'resolution': f'{height}x{width}'}
-                })
-            else:
-                return jsonify({'success': False, 'error': 'No image generated'}), 500
+                    return jsonify({
+                        'success': True,
+                        'image': f'data:image/png;base64,{img_base64}',
+                        'params': {'prompt': prompt, 'steps': steps, 'guidance_scale': guidance_scale, 'resolution': f'{width}x{height}'}
+                    })
+                else:
+                    return jsonify({'success': False, 'error': 'No image generated'}), 500
+                    
+            except Exception as gen_err:
+                 print(f"Generation error: {gen_err}")
+                 import traceback
+                 traceback.print_exc()
+                 return jsonify({'success': False, 'error': str(gen_err)}), 500
 
         elif task == 'image-to-text':
             # Image description
-            if not current_models['i2t']:
+            if not server.i2t_model:
                 return jsonify({'success': False, 'error': 'I2T model not loaded'}), 400
 
             if 'image' not in request.files:
@@ -347,7 +420,8 @@ def generate():
                 return jsonify({'success': False, 'error': 'Invalid file type'}), 400
 
             img = Image.open(io.BytesIO(file.read())).convert('RGB')
-            result = current_models['i2t'].describe(img=img)
+            # Assuming describe returns a dict
+            result = server.i2t_model.describe(img=img)
 
             if result and 'description' in result:
                 return jsonify({
@@ -373,13 +447,6 @@ def health():
     return jsonify({'status': 'healthy', 'server': server is not None})
 
 
-@app.errorhandler(404)
-def not_found(error):
-    if not request.path.startswith('/api/'):
-        return send_from_directory(UI_DIR, 'ui/index.html')
-    return jsonify({'error': 'Not found'}), 404
-
-
 # ========================
 # MAIN
 # ========================
@@ -398,16 +465,15 @@ def main():
 
     args = parser.parse_args()
 
-    if not ModelServer:
-        print("Error: ModelServer not available")
-        return
-
     # Initialize model server
     try:
         config_path = args.config or 'imgenie/config/imgenie.config.default.yaml'
-        print(f"\n📂 Initializing ModelServer with config: {config_path}")
+        if not os.path.isabs(config_path):
+             config_path = os.path.abspath(config_path)
+             
+        print(f"\n📂 Initializing ImgenieServer with config: {config_path}")
 
-        server = ModelServer(config_path=config_path)
+        server = ImgenieServer(config_path=config_path)
         print(f"✓ Server initialized")
         print(f"  Output folder: {server.output_folder}")
         print(f"  T2I models: {list(server.t2i_cfg.keys()) if server.t2i_cfg else 'none'}")

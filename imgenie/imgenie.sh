@@ -17,8 +17,8 @@ echo -e "${BLUE}╚════════════════════�
 echo ""
 
 # Check if we're in the right directory
-if [ ! -f "$SCRIPT_DIR/server.py" ]; then
-    echo -e "${RED}❌ Error: server.py not found in $(pwd)${NC}"
+if [ ! -f "$SCRIPT_DIR/imgenie_server.py" ]; then
+    echo -e "${RED}❌ Error: imgenie_server.py not found in $(pwd)${NC}"
     exit 1
 fi
 
@@ -46,24 +46,45 @@ if [ ! -f "$CONFIG_FILE" ]; then
     exit 1
 fi
 
-# Convert relative path to absolute path
+# Translate path for container
+HOST_ROOT="/home/bharath/1river/IMGENIE"
+CONTAINER_ROOT="/IMGENIE"
+
+# Ensure absolute path for config
 CONFIG_FILE="$(cd "$(dirname "$CONFIG_FILE")" && pwd)/$(basename "$CONFIG_FILE")"
 
-echo -e "${GREEN}✓ Config file: $CONFIG_FILE${NC}"
+if [[ "$CONFIG_FILE" == "$HOST_ROOT"* ]]; then
+    CONTAINER_CONFIG_FILE="${CONFIG_FILE/$HOST_ROOT/$CONTAINER_ROOT}"
+else
+    # Fallback: assume relative path works if not absolute, or just pass it 
+    # But since we resolved to absolute, this case means it is outside the project.
+    # We'll try to use the container path if it matches the structure, otherwise warning.
+    echo -e "${YELLOW}⚠️  Config file seems outside project root. Passing as is, might fail if not mounted.${NC}"
+    CONTAINER_CONFIG_FILE="$CONFIG_FILE" 
+fi
+
+echo -e "${GREEN}✓ Config file (Host): $CONFIG_FILE${NC}"
+echo -e "${GREEN}✓ Config file (Container): $CONTAINER_CONFIG_FILE${NC}"
 echo ""
 echo -e "${GREEN}✓ All systems ready!${NC}"
 echo ""
 echo -e "${BLUE}════════════════════════════════════════${NC}"
-echo -e "${GREEN}🚀 Starting IMGENIE Web UI Server...${NC}"
+echo -e "${GREEN}🚀 Starting IMGENIE Web UI Server inside Docker...${NC}"
 echo -e "${BLUE}════════════════════════════════════════${NC}"
 echo ""
 echo -e "📍 ${YELLOW}Server URL:${NC} http://localhost:$PORT"
 echo -e "💻 ${YELLOW}API Base:${NC}  http://localhost:$PORT/api"
-echo -e "📄 ${YELLOW}Config:${NC}    $CONFIG_FILE"
+echo -e "🐳 ${YELLOW}Container:${NC} imgenie"
 echo ""
 echo -e "${YELLOW}Press Ctrl+C to stop the server${NC}"
 echo ""
 
-# Run the server
-cd "$SCRIPT_DIR"
-python3 server.py --port=$PORT --config="$CONFIG_FILE"
+# Check if container is running
+if ! docker ps | grep -q "imgenie"; then
+    echo -e "${RED}❌ Docker container 'imgenie' is not running.${NC}"
+    echo -e "${YELLOW}Please start it first.${NC}"
+    exit 1
+fi
+
+# Run the server inside docker
+docker exec -it imgenie python3 /IMGENIE/imgenie/imgenie_server.py --port=$PORT --config="$CONTAINER_CONFIG_FILE"

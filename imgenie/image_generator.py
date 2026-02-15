@@ -178,10 +178,14 @@ class ImageGenerator:
                         width=width,
                     )
 
+            output_paths = []
             for i, img in enumerate(result.images):
                 output_path = self._get_timestamped_path(f"{prompt}_{i}")
                 img.save(output_path)
                 logger.info(f"Saved image {i} to {output_path}")
+                output_paths.append(output_path)
+            
+            return output_paths
 
         except Exception as e:
             logger.error(f"Inference error: {e}")
