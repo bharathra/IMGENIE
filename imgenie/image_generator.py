@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-MODEL = "/root/.cache/huggingface/hub/model--Tongyi-MAI--Z-Image-Turbo/"
+DEFAULT_MODEL_PATH = "/root/.imgenie/models/TongyiMAI.ZImageTurbo/"
 
 
 class ImageGenerator:
@@ -23,26 +23,44 @@ class ImageGenerator:
 
     _active_loras: list = []
 
-    def __init__(self, output_dir: str = "/root/.imgenie/output"):
+    def __init__(self,
+                 model_path=DEFAULT_MODEL_PATH,
+                 input_dir: str = "/root/.imgenie/input",
+                 output_dir: str = "/root/.imgenie/output", 
+                 lora_path: str = "/root/.imgenie/loras"):
+
+        self.input_dir = Path(input_dir)
+        self.input_dir.mkdir(parents=True, exist_ok=True)
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.lora_path = Path(lora_path)
+        self.model_path = model_path
+
         self.pipeline: Optional[Union[ZImageImg2ImgPipeline, ZImagePipeline]] = None
 
-        self.load_model(MODEL)
-
-    def load_model(self, model: str) -> None:
+    def load_model(self) -> bool:
         try:
-            logger.info(f"Loading base model: {model}")
+            logger.info(f"Loading base model: {self.model_path}")
             self.pipeline = ZImageImg2ImgPipeline.from_pretrained(
-                model,
+                self.model_path,
                 torch_dtype=torch.bfloat16,
                 use_safetensors=True,
                 local_files_only=True).to("cuda:0")
             logger.info("Model loaded successfully.")
+            return True
 
         except Exception as e:
             logger.error(f"Error loading model: {e}")
-            raise e
+            return False
+
+    def unload_model(self) -> None:
+        if self.pipeline is not None:
+            del self.pipeline
+            torch.cuda.empty_cache()
+            logger.info("Model pipeline unloaded and GPU cache cleared.")
+        else:
+            logger.warning("No model pipeline to unload.")
+        self.pipeline = None
 
     def load_loras(self, loras: list, weights: Optional[list] = None) -> None:
         """Loads multiple LoRA adapters into the pipeline correctly from local files."""
@@ -169,10 +187,10 @@ class ImageGenerator:
             logger.error(f"Inference error: {e}")
             raise e
 
-    def read_config(self, config_path: str):
+    def generate_from_yaml(self, yaml_path: str) -> bool:
         """Edit images from configuration file."""
         try:
-            with open(config_path, 'r') as f:
+            with open(yaml_path, 'r') as f:
                 config = yf.safe_load(f)
 
             height = config.get('height', 720)
@@ -184,7 +202,6 @@ class ImageGenerator:
 
             prompt = config.get('prompt', '')
             negative_prompt = config.get('negative_prompt', '')
-            lora_root_path = config.get('lora_root_path', '')
 
             ref_image_path = config.get('ref_image_path', None)
             ref_image_strength = config.get('ref_image_strength', 0.8)
@@ -198,7 +215,7 @@ class ImageGenerator:
                     prompt = prompt.replace('__CHARACTER__', character)
                 #
                 character_lora_file = character.replace(" ", "")
-                char_lora_path = path.join(lora_root_path, 'characters',
+                char_lora_path = path.join(self.lora_path, 'characters',
                                            f"{character_lora_file}.safetensors")
                 if path.exists(char_lora_path):
                     lora_paths.append(char_lora_path)
@@ -211,7 +228,7 @@ class ImageGenerator:
                     prompt = prompt.replace('__CONCEPT__', concept)
                 #
                 concept_lora_file = concept.replace(" ", "")
-                concept_lora_path = path.join(lora_root_path, 'concepts',
+                concept_lora_path = path.join(self.lora_path, 'concepts',
                                               f"{concept_lora_file}.safetensors")
                 if path.exists(concept_lora_path):
                     lora_paths.append(concept_lora_path)
@@ -231,9 +248,11 @@ class ImageGenerator:
                 height=height,
                 width=width)
 
+            return True
+
         except Exception as e:
             logger.error(f"Error in edit_from_config: {e}")
-            raise e
+            return False
 
     def _get_timestamped_path(self, prompt: str) -> Path:
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -243,11 +262,12 @@ class ImageGenerator:
 
 if __name__ == "__main__":
     generator = ImageGenerator()
+    generator.load_model()
 
     while True:
         try:
             input("Press Enter\n")
-            generator.read_config("/root/.imgenie/prompts/prompt.yaml")
+            generator.generate_from_yaml("/root/.imgenie/prompts/prompt.yaml")
         except Exception as e:
-            logger.error(f"Error in edit_from_config: {e}")
+            logger.error(f"Error: {e}")
             raise e

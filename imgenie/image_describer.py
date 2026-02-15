@@ -15,40 +15,49 @@ from transformers import AutoProcessor, LlavaForConditionalGeneration
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+DEFAULT_MODEL_PATH = "/root/.imgenie/models/fancyfeast.joycaption/weights"
+
 
 class ImageDescriber:
 
-    # Model identifier
-    model: str = ''
-
     def __init__(self,
+                 model_path: str = DEFAULT_MODEL_PATH,
+                 input_dir: str = "/root/.imgenie/input",
                  output_dir: str = "/root/.imgenie/output"):
         # Setup output directory
+        self.input_dir = Path(input_dir)
+        self.input_dir.mkdir(parents=True, exist_ok=True)
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.model_path = model_path
 
-    def load_model(self, model: str = "/root/.cache/huggingface/hub/models--fancyfeast--llama-joycaption-beta-one-hf-llava/weights") -> None:
+    def load_model(self) -> bool:
         # Load the pipeline
         try:
-            self.model = model  
-            # Default to JoyCaption model: "fancyfeast/llama-joycaption-beta-one-hf-llava"
-
             load_start = time.time()
-            logger.info(f"Loading model: {self.model}")
+            # logger.info(f"Loading model: {self.model}")
 
-            self.i2t_processor = AutoProcessor.from_pretrained(self.model, local_files_only=True)
+            self.i2t_processor = AutoProcessor.from_pretrained(self.model_path, local_files_only=True)
             self.i2t_model = LlavaForConditionalGeneration.from_pretrained(
-                self.model,
+                self.model_path,
                 torch_dtype=torch.bfloat16,
-                local_files_only=True
-            ).to("cuda:0")
+                local_files_only=True).to("cuda:0")
 
             load_time = (time.time() - load_start) * 1000
             logger.info(f"Model loaded in {load_time:.2f}ms")
+            return True
 
         except Exception as e:
             logger.error(f"Error loading model: {e}")
-            raise e
+            return False
+
+    def unload_model(self) -> None:
+        if self.i2t_model is not None:
+            del self.i2t_model
+            torch.cuda.empty_cache()
+            logger.info("Model unloaded successfully.")
+        else:
+            logger.warning("No model to unload.")
 
     def describe(self, img: PILImage.Image,
                  prompt: Optional[str] = None) -> dict:
@@ -135,11 +144,10 @@ if __name__ == "__main__":
                 # Save description to a text file
                 desc_file = server.output_dir / f"{img_file.stem}.txt"
                 with open(desc_file, 'w') as f:
-                    f.write(result['description'])  
+                    f.write(result['description'])
 
             except Exception as e:
                 logger.error(f"Error processing image {img_file.name}: {e}")
     else:
         print("Exiting...")
         exit()
-
