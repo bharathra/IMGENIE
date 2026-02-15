@@ -1,0 +1,18 @@
+height: 720
+width: 720
+#
+number_of_images: 1 # anything above 1 will crash the system due to memory constraints
+guidance_scale: 0 # does not seem to have a significant impact on the quality
+num_inference_steps: 9 # does not seem to have a significant impact on the quality 
+# seed: 42  # does not work with distilled models
+#
+# concept: Mystic
+concept_strength: 0.33
+#
+character: Debby Ryan
+character_strength: 0.66
+#
+# ref_image_path: test.jpg
+ref_image_strength: 0.66
+#
+prompt: "This is a professional 3/4 photograph of __CHARACTER__ in a studio with dark gray background."
