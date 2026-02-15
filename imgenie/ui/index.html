@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IMGENIE - Image Generation Studio</title>
+    <link href="https://fonts.googleapis.com/css2?family=M+Plus+2:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="ui/styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo">
+                <h1>✨ IMGENIE</h1>
+                <p class="logo-subtitle">Image Generation Studio</p>
+            </div>
+            <div class="header-actions">
+                <button class="theme-toggle" id="themeToggle" title="Toggle dark/light mode">
+                    <span class="theme-icon">🌙</span>
+                </button>
+                <button class="settings-btn" id="settingsBtn" title="Open settings">
+                    <span class="settings-icon">⚙️</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="container">
+        <div class="content-wrapper">
+            <!-- Section 1: Task Selector -->
+            <section class="card task-selector">
+                <div class="section-header">
+                    <span class="step-number">1</span>
+                    <h2>Select Task</h2>
+                </div>
+                <div class="task-options">
+                    <label class="radio-card">
+                        <input type="radio" name="task" value="text-to-image" checked>
+                        <div class="radio-content">
+                            <span class="radio-label">🖼️ Text-to-Image</span>
+                            <p class="radio-description">Generate images from text prompts</p>
+                        </div>
+                    </label>
+                    <label class="radio-card">
+                        <input type="radio" name="task" value="image-to-text">
+                        <div class="radio-content">
+                            <span class="radio-label">📝 Image-to-Text</span>
+                            <p class="radio-description">Generate descriptions from images</p>
+                        </div>
+                    </label>
+                </div>
+            </section>
+
+            <!-- Section 2: Model Selector -->
+            <section class="card model-selector">
+                <div class="section-header">
+                    <span class="step-number">2</span>
+                    <h2>Select Model</h2>
+                </div>
+                <div class="model-selection">
+                    <select id="modelSelect" class="model-dropdown">
+                        <option value="">-- Select a model --</option>
+                        <option value="zimage_turbo">ZImageTurbo</option>
+                    </select>
+                    <div class="model-info">
+                        <p id="modelDetailsPlaceholder" class="info-text">Select a model to view details</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 3: Model Control -->
+            <section class="card model-control">
+                <div class="section-header">
+                    <span class="step-number">3</span>
+                    <h2>Model Control</h2>
+                </div>
+                <div class="control-buttons">
+                    <button class="btn btn-primary" id="loadModelBtn">
+                        📥 Load Model
+                    </button>
+                    <button class="btn btn-secondary" id="unloadModelBtn" disabled>
+                        📤 Unload Model
+                    </button>
+                </div>
+                <div class="model-status">
+                    <div class="status-item">
+                        <span class="status-label">Status:</span>
+                        <span class="status-value" id="modelStatus">Not Loaded</span>
+                    </div>
+                    <div class="memory-bar">
+                        <div class="memory-label">
+                            <span>GPU Memory:</span>
+                            <span id="memoryPercent">0%</span>
+                        </div>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="memoryFill"></div>
+                        </div>
+                        <div class="memory-text" id="memoryText">0 GB / 8 GB</div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 4: Parameters -->
+            <section class="card parameters">
+                <div class="section-header">
+                    <span class="step-number">4</span>
+                    <h2>Configuration Parameters</h2>
+                </div>
+                
+                <div class="param-group txt2img-only">
+                    <label for="stepsSlider" class="param-label">
+                        <span>Inference Steps</span>
+                        <span class="param-value" id="stepsValue">20</span>
+                    </label>
+                    <input type="range" id="stepsSlider" min="1" max="50" value="20" class="slider">
+                    <div class="param-hint">Higher steps = better quality, slower generation</div>
+                </div>
+
+                <div class="param-group txt2img-only">
+                    <label for="guidanceSlider" class="param-label">
+                        <span>Guidance Scale</span>
+                        <span class="param-value" id="guidanceValue">7.5</span>
+                    </label>
+                    <input type="range" id="guidanceSlider" min="0" max="20" step="0.1" value="7.5" class="slider">
+                    <div class="param-hint">Controls adherence to prompt (higher = more adherence, 0 = free form)</div>
+                </div>
+
+                <div class="param-group txt2img-only">
+                    <label for="resolutionSelect" class="param-label">
+                        <span>Resolution</span>
+                    </label>
+                    <select id="resolutionSelect" class="param-select">
+                        <option value="512x512">512 × 512</option>
+                        <option value="768x768">768 × 768</option>
+                        <option value="1024x1024">1024 × 1024</option>
+                    </select>
+                </div>
+
+                <div class="param-group txt2img-only">
+                    <label for="seedInput" class="param-label">
+                        <span>Seed</span>
+                        <button type="button" class="btn-icon" id="randomSeedBtn" title="Generate random seed">🎲</button>
+                    </label>
+                    <input type="number" id="seedInput" placeholder="Leave empty for random seed" class="param-input">
+                    <div class="param-hint">Use the same seed to reproduce results</div>
+                </div>
+            </section>
+
+            <!-- Section 5: Inputs -->
+            <section class="card inputs-section">
+                <div class="section-header">
+                    <span class="step-number">5</span>
+                    <h2>Configure Inputs</h2>
+                </div>
+
+                <!-- Text-to-Image inputs -->
+                <div id="text-to-image-inputs" class="task-inputs active">
+                    <div class="input-group">
+                        <label for="promptInput" class="input-label">
+                            <span>📝 Prompt</span>
+                            <span class="char-count"><span id="promptCount">0</span>/1000</span>
+                        </label>
+                        <textarea id="promptInput" class="prompt-textarea" placeholder="Describe the image you want to generate..." maxlength="1000"></textarea>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="referenceImage" class="input-label">📷 Reference Image (Optional)</label>
+                        <div class="upload-area" id="uploadArea">
+                            <input type="file" id="referenceImage" accept="image/*" style="display: none;">
+                            <div class="upload-placeholder">
+                                <span class="upload-icon">📤</span>
+                                <p>Drag and drop an image here, or click to select</p>
+                            </div>
+                            <div class="image-preview" id="imagePreview"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Image-to-Text inputs -->
+                <div id="image-to-text-inputs" class="task-inputs">
+                    <div class="input-group">
+                        <label for="imageForDesc" class="input-label">📷 Upload Image to Describe</label>
+                        <div class="upload-area" id="uploadAreaDesc">
+                            <input type="file" id="imageForDesc" accept="image/*" style="display: none;">
+                            <div class="upload-placeholder">
+                                <span class="upload-icon">📤</span>
+                                <p>Drag and drop an image here, or click to select</p>
+                            </div>
+                            <div class="image-preview" id="imagePreviewDesc"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 6: Generation -->
+            <section class="card generation">
+                <div class="section-header">
+                    <span class="step-number">6</span>
+                    <h2>Generate</h2>
+                </div>
+                <button class="btn btn-generate" id="generateBtn">
+                    ✨ Generate Image
+                </button>
+                <button class="btn btn-cancel" id="cancelBtn" style="display: none;">
+                    ⏹ Cancel Generation
+                </button>
+                <div class="generation-progress" id="generationProgress" style="display: none;">
+                    <div class="progress-info">
+                        <p id="progressText">Processing...</p>
+                        <span id="timeRemaining">Time remaining: --</span>
+                    </div>
+                    <div class="progress-bar large-progress">
+                        <div class="progress-fill" id="generationProgressFill"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 7: Results -->
+            <section class="card results" id="resultsSection" style="display: none;">
+                <div class="section-header">
+                    <span class="step-number">7</span>
+                    <h2>Generated Image</h2>
+                </div>
+                <div class="result-container">
+                    <img id="generatedImage" class="generated-image" alt="Generated image">
+                    <div class="result-actions">
+                        <button class="btn btn-icon-text" id="saveImageBtn">
+                            💾 Save Image
+                        </button>
+                        <button class="btn btn-icon-text" id="regenerateBtn">
+                            🔄 Regenerate
+                        </button>
+                        <button class="btn btn-icon-text" id="copyMetadataBtn">
+                            📋 Copy Metadata
+                        </button>
+                    </div>
+                    <div class="result-metadata" id="resultMetadata">
+                        <p><strong>Model:</strong> <span id="metaModel">--</span></p>
+                        <p><strong>Time:</strong> <span id="metaTime">--</span></p>
+                        <p><strong>Resolution:</strong> <span id="metaResolution">--</span></p>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Settings Modal -->
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Settings</h2>
+                <button class="btn-close" id="closeSettingsBtn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-group">
+                    <label for="cacheDir" class="settings-label">Model Cache Directory</label>
+                    <input type="text" id="cacheDir" class="settings-input" placeholder="/path/to/models">
+                </div>
+
+                <div class="settings-group">
+                    <label for="defaultRes" class="settings-label">Default Resolution</label>
+                    <select id="defaultRes" class="settings-input">
+                        <option value="512">512 × 512</option>
+                        <option value="768">768 × 768</option>
+                        <option value="1024">1024 × 1024</option>
+                    </select>
+                </div>
+
+                <div class="settings-group">
+                    <label class="settings-checkbox">
+                        <input type="checkbox" id="autoLoadModel">
+                        <span>Auto-load last used model on startup</span>
+                    </label>
+                </div>
+
+                <div class="settings-group">
+                    <label for="apiEndpoint" class="settings-label">API Endpoint</label>
+                    <input type="text" id="apiEndpoint" class="settings-input" placeholder="http://localhost:8000">
+                </div>
+
+                <div class="settings-group">
+                    <label for="maxGpuMemory" class="settings-label">Max GPU Memory (GB)</label>
+                    <input type="number" id="maxGpuMemory" class="settings-input" min="1" max="80" value="8">
+                </div>
+
+                <div class="settings-group">
+                    <label class="settings-label">Cached Models</label>
+                    <div class="cached-models-list" id="cachedModelsList">
+                        <p class="info-text">No cached models</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="resetSettingsBtn">Reset to Defaults</button>
+                <div>
+                    <button class="btn btn-secondary" id="cancelSettingsBtn">Cancel</button>
+                    <button class="btn btn-primary" id="saveSettingsBtn">💾 Save Settings</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>
