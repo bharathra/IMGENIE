@@ -456,24 +456,25 @@ def generate():
                     height=height,
                     width=width,
                     seed=seed if seed >= 0 else None,
-                    strength=strength,
                     callback=update_progress,
                     ref_image_path=ref_image_path
+                    strength=strength,
                 )
-                
+
                 # Mark as done
                 generation_progress['status'] = 'completed'
                 generation_progress['progress'] = 100
                 generation_progress['message'] = 'Completed'
                 
                 if output_image:
-                    # Save local copy
+                    # Save local copy to TEMP folder
                     timestamp = time.strftime('%Y%m%d_%H%M%S')
                     safe_prompt = "".join([c if c.isalnum() else "_" for c in prompt])[:20]
-                    filename = f"{timestamp}_{safe_prompt}.png"
-                    output_path = os.path.join(server.output_folder, filename)
-                    output_image.save(output_path)
-                    print(f"DEBUG: Saved generated image to {output_path}")
+                    filename = f"gen_{timestamp}_{safe_prompt}.png"
+                    temp_path = os.path.join('/tmp', filename)
+                    output_image.save(temp_path)
+                    print(f"DEBUG: Saved generated image to temp: {temp_path}")
+
                     # Encode for response
                     buffered = io.BytesIO()
                     output_image.save(buffered, format="PNG")
@@ -482,11 +483,20 @@ def generate():
                     return jsonify({
                         'success': True,
                         'image': f'data:image/png;base64,{img_base64}',
-                        'params': {'prompt': prompt, 'steps': steps, 'guidance_scale': guidance_scale, 'resolution': f'{width}x{height}', 'strength': strength}
+                        'image_id': filename,
+                        'params': {
+                            'prompt': prompt, 
+                            'steps': steps, 
+                            'guidance_scale': guidance_scale, 
+                            'resolution': f'{width}x{height}', 
+                            'ref_image_strength': strength,
+                            'seed': seed,
+                            'ref_image_path': ref_image_path
+                        }
                     })
                 else:
                     return jsonify({'success': False, 'error': 'No image generated'}), 500
-                    
+
             except Exception as gen_err:
                  generation_progress['status'] = 'failed'
                  generation_progress['message'] = str(gen_err)
@@ -602,6 +612,46 @@ def main():
         print("\n⏹️  Shutting down...")
         sys.exit(0)
 
+
+@app.route('/api/save', methods=['POST'])
+def save_image():
+    """Save generated image and metadata to output folder"""
+    if not server:
+        return jsonify({'success': False, 'error': 'Server not initialized'}), 500
+        
+    data = request.json
+    image_id = data.get('image_id')
+    metadata = data.get('metadata', {})
+    
+    if not image_id:
+        return jsonify({'success': False, 'error': 'Image ID required'}), 400
+        
+    temp_path = os.path.join('/tmp', image_id)
+    if not os.path.exists(temp_path):
+        return jsonify({'success': False, 'error': 'Image not found (expired?)'}), 404
+        
+    try:
+        # Move image to output folder
+        target_path = os.path.join(server.output_folder, image_id)
+        
+        # Copy instead of move so we don't break subsequent saves if user clicks multiple times
+        import shutil
+        shutil.copy2(temp_path, target_path)
+        
+        # Save metadata
+        yaml_path = os.path.splitext(target_path)[0] + '.yaml'
+        # Add timestamp and tool info if not present
+        metadata['saved_at'] = time.strftime('%Y-%m-%d %H:%M:%S')
+        metadata['tool'] = 'Imgenie Web UI'
+        
+        with open(yaml_path, 'w') as f:
+            yaml.dump(metadata, f, default_flow_style=False)
+            
+        return jsonify({'success': True, 'path': target_path})
+
+    except Exception as e:
+        print(f"Error saving image: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
     main()

@@ -344,10 +344,7 @@ function attachEventListeners() {
 
     // Results actions
     document.getElementById('saveImageBtn')?.addEventListener('click', handleSaveImage);
-    document.getElementById('regenerateBtn')?.addEventListener('click', () => {
-        document.getElementById('generateBtn').click();
-    });
-    document.getElementById('copyMetadataBtn')?.addEventListener('click', handleCopyMetadata);
+
 
     // Settings
     document.getElementById('settingsBtn').addEventListener('click', openSettings);
@@ -694,7 +691,7 @@ async function handleGenerate() {
         const result = await response.json();
 
         if (appState.currentTask === 'text-to-image') {
-            displayResults(result.image, result.params || {});
+            displayResults(result.image, result.params || {}, result.image_id);
             showToast('Image generated successfully!', 'success');
         } else {
             displayDescription(result.description, {
@@ -737,7 +734,7 @@ function updateGenerationUI() {
     }
 }
 
-function displayResults(imageUrl, params) {
+function displayResults(imageUrl, params, imageId) {
     const resultsSection = document.getElementById('resultsSection');
     const imageElement = document.getElementById('generatedImage');
     const descContainer = document.getElementById('descriptionContainer');
@@ -746,6 +743,8 @@ function displayResults(imageUrl, params) {
     imageElement.style.display = 'block';
 
     imageElement.src = imageUrl;
+    appState.lastImageId = imageId;
+    appState.lastImageParams = params;
 
     document.getElementById('metaModel').textContent = appState.selectedModel || 'Unknown';
     document.getElementById('metaTime').textContent = new Date().toLocaleTimeString();
@@ -785,41 +784,47 @@ function displayDescription(description, metadata) {
     resultsSection.scrollIntoView({ behavior: 'smooth' });
 }
 
-function handleSaveImage() {
-    const image = document.getElementById('generatedImage');
-    const link = document.createElement('a');
-    link.href = image.src;
-    link.download = `imgenie-${Date.now()}.png`;
-    link.click();
-}
+async function handleSaveImage() {
+    if (!appState.lastImageId) {
+        showToast('No image to save', 'warning');
+        return;
+    }
 
-function handleCopyMetadata() {
-    const isT2I = appState.currentTask === 'text-to-image';
-    const metadata = {
-        'Tool': 'Imgenie Web UI',
-        'Date': new Date().toLocaleString(),
-        'Task': appState.currentTask,
-        'Model ID': document.getElementById('metaModel').textContent,
-        'Prompt': isT2I ? document.getElementById('promptInput').value : 'N/A',
-        // 'Negative Prompt': isT2I ? document.getElementById('negPromptInput')?.value || 'None' : 'N/A', // If you have negative prompt input
-        'Steps': isT2I ? document.getElementById('stepsValue').textContent : 'N/A',
-        'Guidance Scale': isT2I ? document.getElementById('guidanceValue').textContent : 'N/A',
-        'Resolution': document.getElementById('metaResolution').textContent,
-        'Seed': isT2I ? document.getElementById('seedInput').value || 'Random' : 'N/A',
-        'Ref Strength': isT2I ? (document.getElementById('strengthValue') ? document.getElementById('strengthValue').textContent : 'N/A') : 'N/A',
-        'Ref Image Used': isT2I && document.getElementById('referenceImage').files.length > 0 ? 'Yes' : 'No',
-        'Output Filename': `imgenie-${Date.now()}.png` // Best guess matching save func
-    };
+    const saveBtn = document.getElementById('saveImageBtn');
+    const originalText = saveBtn.textContent;
+    saveBtn.textContent = 'Saving...';
+    saveBtn.disabled = true;
 
-    let text = "=== IMGENIE GENERATION METADATA ===\n";
-    Object.entries(metadata).forEach(([key, value]) => {
-        text += `${key}: ${value}\n`;
-    });
-    text += "===================================";
+    try {
+        const payload = {
+            image_id: appState.lastImageId,
+            metadata: {
+                model_id: appState.selectedModel,
+                params: appState.lastImageParams || {},
+                task: appState.currentTask
+            }
+        };
 
-    navigator.clipboard.writeText(text).then(() => {
-        showToast('Full metadata copied to clipboard', 'success');
-    });
+        const response = await fetch(`${API_BASE}/save`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showToast(`Image saved to server output folder`, 'success');
+        } else {
+            showToast(`Save failed: ${result.error}`, 'error');
+        }
+    } catch (e) {
+        console.error("Save error:", e);
+        showToast('Save failed', 'error');
+    } finally {
+        saveBtn.textContent = originalText;
+        saveBtn.disabled = false;
+    }
 }
 
 // ===========================
