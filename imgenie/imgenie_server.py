@@ -449,7 +449,7 @@ def generate():
 
             # Call generate
             try:
-                output_paths = server.t2i_model.generate(
+                output_image = server.t2i_model.generate(
                     prompt=prompt,
                     num_inference_steps=steps,
                     guidance_scale=guidance_scale,
@@ -466,10 +466,18 @@ def generate():
                 generation_progress['progress'] = 100
                 generation_progress['message'] = 'Completed'
                 
-                if output_paths and len(output_paths) > 0:
-                    latest = output_paths[-1] # Get the last generated image
-                    with open(latest, 'rb') as f:
-                        img_base64 = base64.b64encode(f.read()).decode('utf-8')
+                if output_image:
+                    # Save local copy
+                    timestamp = time.strftime('%Y%m%d_%H%M%S')
+                    safe_prompt = "".join([c if c.isalnum() else "_" for c in prompt])[:20]
+                    filename = f"{timestamp}_{safe_prompt}.png"
+                    output_path = os.path.join(server.output_folder, filename)
+                    output_image.save(output_path)
+                    print(f"DEBUG: Saved generated image to {output_path}")
+                    # Encode for response
+                    buffered = io.BytesIO()
+                    output_image.save(buffered, format="PNG")
+                    img_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
 
                     return jsonify({
                         'success': True,

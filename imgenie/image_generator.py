@@ -119,7 +119,6 @@ class ImageGenerator:
                  prompt: str,
                  ref_image_path: Optional[str] = None,
                  negative_prompt: str = "",
-                 number_of_images: int = 1,
                  num_inference_steps: int = 10,
                  guidance_scale: float = 0,
                  strength: float = 0.8,
@@ -159,7 +158,7 @@ class ImageGenerator:
                         negative_prompt=negative_prompt,
                         num_inference_steps=num_inference_steps,
                         guidance_scale=guidance_scale,
-                        num_images_per_prompt=number_of_images,
+                        num_images_per_prompt=1,
                         strength=strength,
                         height=height,
                         width=width,
@@ -176,20 +175,13 @@ class ImageGenerator:
                         negative_prompt=negative_prompt,
                         num_inference_steps=num_inference_steps,
                         guidance_scale=guidance_scale,
-                        num_images_per_prompt=number_of_images,
+                        num_images_per_prompt=1,
                         height=height,
                         width=width,
                         callback_on_step_end=callback
                     )
 
-            output_paths = []
-            for i, img in enumerate(result.images):
-                output_path = self._get_timestamped_path(f"{prompt}_{i}")
-                img.save(output_path)
-                logger.info(f"Saved image {i} to {output_path}")
-                output_paths.append(output_path)
-            
-            return output_paths
+            return result.images[0]
 
         except Exception as e:
             logger.error(f"Inference error: {e}")
@@ -245,16 +237,21 @@ class ImageGenerator:
 
             self.load_loras(lora_paths, weights)
 
-            self.generate(
+            image = self.generate(
                 ref_image_path=ref_image_path,
                 prompt=prompt,
                 negative_prompt=negative_prompt,
-                number_of_images=number_of_images,
                 num_inference_steps=num_inference_steps,
                 guidance_scale=guidance_scale,
                 strength=ref_image_strength,
                 height=height,
                 width=width)
+
+            if image:
+                # Save image
+                output_path = self._get_timestamped_path(prompt)
+                image.save(output_path)
+                logger.info(f"Saved image to {output_path}")
 
             return True
 
