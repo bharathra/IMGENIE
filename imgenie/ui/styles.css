@@ -141,7 +141,7 @@ body {
     top: 0;
     z-index: 100;
     box-shadow: none;
-    /* Removed shadow */
+    /* Ensure absolute children are relative to header */
 }
 
 /* ... */
@@ -164,13 +164,16 @@ body {
 }
 
 .header-actions {
+    position: absolute;
+    top: 1.5rem;
+    right: 2rem;
     display: flex;
-    gap: 1rem;
     align-items: center;
+    gap: 0;
+    /* No gap needed for single item */
 }
 
-.theme-toggle,
-.settings-btn {
+.theme-toggle {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     padding: 0.6rem;
@@ -183,8 +186,7 @@ body {
     justify-content: center;
 }
 
-.theme-toggle:hover,
-.settings-btn:hover {
+.theme-toggle:hover {
     background: var(--bg-tertiary);
     border-color: var(--accent-primary);
     transform: translateY(-2px);

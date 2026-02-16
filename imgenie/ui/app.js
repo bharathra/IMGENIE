@@ -349,10 +349,10 @@ function attachEventListeners() {
     document.getElementById('saveImageBtn')?.addEventListener('click', handleSaveImage);
 
 
-    // Settings
-    document.getElementById('settingsBtn').addEventListener('click', openSettings);
-    document.getElementById('closeSettingsBtn').addEventListener('click', closeSettings);
-    document.getElementById('cancelSettingsBtn').addEventListener('click', closeSettings);
+    // Settings (Removed)
+    // document.getElementById('settingsBtn').addEventListener('click', openSettings);
+    // document.getElementById('closeSettingsBtn').addEventListener('click', closeSettings);
+    // document.getElementById('cancelSettingsBtn').addEventListener('click', closeSettings);
 
     // Modal close on background click
     document.getElementById('settingsModal').addEventListener('click', (e) => {
