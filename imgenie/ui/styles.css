@@ -830,6 +830,18 @@ body {
     box-shadow: 0 4px 12px rgba(255, 71, 87, 0.3);
 }
 
+.btn-danger {
+    background: var(--bg-tertiary);
+    color: var(--accent-error);
+    border: 1px solid var(--border-color);
+}
+
+.btn-danger:hover {
+    background: #ffebee;
+    border-color: #ff4757;
+    color: #ff4757;
+}
+
 .btn-icon-text {
     background: var(--bg-tertiary);
     color: var(--text-primary);

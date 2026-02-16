@@ -209,7 +209,15 @@ function saveConfigToLocalStorage() {
         strength: document.getElementById('strengthSlider') ? document.getElementById('strengthSlider').value : 0.8,
         resolution: document.getElementById('resolutionSelect').value,
         seed: document.getElementById('seedInput').value,
-        model: appState.selectedModel
+        model: appState.selectedModel,
+        loras: {
+            char1: document.getElementById('char1Select') ? document.getElementById('char1Select').value : '',
+            char1w: document.getElementById('char1Weight') ? document.getElementById('char1Weight').value : 0.66,
+            char2: document.getElementById('char2Select') ? document.getElementById('char2Select').value : '',
+            char2w: document.getElementById('char2Weight') ? document.getElementById('char2Weight').value : 0.66,
+            concept: document.getElementById('conceptSelect') ? document.getElementById('conceptSelect').value : '',
+            conceptw: document.getElementById('conceptWeight') ? document.getElementById('conceptWeight').value : 0.33
+        }
     };
     localStorage.setItem('imgenie_ui_config', JSON.stringify(config));
 }
@@ -250,6 +258,11 @@ function loadConfigFromLocalStorage() {
             if (config.model) appState.savedModelId = config.model;
 
             if (config.seed) document.getElementById('seedInput').value = config.seed;
+
+            // Restore LoRAs
+            if (config.loras) {
+                appState.savedLoRas = config.loras;
+            }
 
             // Update char count
             document.getElementById('promptCount').textContent = document.getElementById('promptInput').value.length;
@@ -338,6 +351,12 @@ function attachEventListeners() {
         if (el) el.addEventListener('change', saveConfigToLocalStorage);
     });
 
+    // Save config on LoRA changes
+    ['char1Select', 'char1Weight', 'char2Select', 'char2Weight', 'conceptSelect', 'conceptWeight'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', saveConfigToLocalStorage);
+    });
+
     // File uploads
     setupFileUpload('uploadArea', 'referenceImage', 'imagePreview');
     setupFileUpload('uploadAreaDesc', 'imageForDesc', 'imagePreviewDesc');
@@ -347,6 +366,7 @@ function attachEventListeners() {
 
     // Results actions
     document.getElementById('saveImageBtn')?.addEventListener('click', handleSaveImage);
+    document.getElementById('deleteImageBtn')?.addEventListener('click', handleDeleteImage);
 
 
     // Settings (Removed)
@@ -373,10 +393,12 @@ function attachEventListeners() {
 function setupCollapsibles() {
     const cards = document.querySelectorAll('.card');
 
-    // Initially expand first card, collapse others
+    // Initially expand first card, collapse others (except generation)
     cards.forEach((card, index) => {
+
+        // Leave generation card alone (it has no chevron and no card-content wrapper now, always visible)
         const header = card.querySelector('.section-header');
-        if (!header) return; // Skip cards without headers if any
+        if (!header) return;
 
         if (index === 0) {
             card.classList.add('active');
@@ -388,7 +410,11 @@ function setupCollapsibles() {
             const isActive = card.classList.contains('active');
 
             // Close all
-            cards.forEach(c => c.classList.remove('active'));
+            cards.forEach(c => {
+                if (!c.classList.contains('generation')) {
+                    c.classList.remove('active');
+                }
+            });
 
             if (!isActive) {
                 card.classList.add('active');
@@ -562,6 +588,57 @@ async function handleUnloadModel() {
 // ===========================
 // FILE UPLOAD
 // ===========================
+
+async function handleDeleteImage() {
+    if (!appState.lastImageId) {
+        showToast('No image to delete', 'warning');
+        return;
+    }
+
+    if (!confirm('Are you sure you want to delete this image? This cannot be undone.')) {
+        return;
+    }
+
+    const deleteBtn = document.getElementById('deleteImageBtn');
+    let originalText = '🗑️ Delete';
+    if (deleteBtn) {
+        originalText = deleteBtn.innerHTML;
+        deleteBtn.innerHTML = 'Deleting...';
+        deleteBtn.disabled = true;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/delete_image`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                image_id: appState.lastImageId
+            })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showToast('Image deleted successfully', 'success');
+            // Clear viewport
+            document.getElementById('generatedImage').src = '';
+            document.getElementById('resultsSection').style.display = 'none';
+            appState.lastImageId = null;
+        } else {
+            throw new Error(result.error || 'Failed to delete image');
+        }
+    } catch (error) {
+        console.error('Delete error:', error);
+        showToast(`Delete failed: ${error.message}`, 'error');
+    } finally {
+        if (deleteBtn) {
+            deleteBtn.innerHTML = originalText;
+            deleteBtn.disabled = false;
+        }
+    }
+}
 
 function setupFileUpload(uploadAreaId, fileInputId, previewId) {
     const uploadArea = document.getElementById(uploadAreaId);
@@ -1115,5 +1192,24 @@ function updateLoRaDropdowns(characters, concepts) {
     updateSelect('char1Select', characters);
     updateSelect('char2Select', characters);
     updateSelect('conceptSelect', concepts);
+
+    // Restore saved LoRAs if available
+    if (appState.savedLoRas) {
+        const l = appState.savedLoRas;
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el && val) el.value = val;
+        };
+
+        setVal('char1Select', l.char1);
+        setVal('char1Weight', l.char1w);
+        setVal('char2Select', l.char2);
+        setVal('char2Weight', l.char2w);
+        setVal('conceptSelect', l.concept);
+        setVal('conceptWeight', l.conceptw);
+
+        // Clear after restoring so we don't overwrite if user changes subsequently
+        appState.savedLoRas = null;
+    }
 }
 

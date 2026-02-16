@@ -745,5 +745,59 @@ def save_image():
         print(f"Error saving image: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/delete_image', methods=['POST'])
+def delete_image():
+    """Delete generated image from disk"""
+    if not server:
+        return jsonify({'success': False, 'error': 'Server not initialized'}), 500
+
+    data = request.json
+    image_id = data.get('image_id')
+
+    if not image_id:
+        return jsonify({'success': False, 'error': 'Image ID required'}), 400
+
+    # Basic sanitization to prevent directory traversal
+    if '..' in image_id or '/' in image_id or '\\' in image_id:
+         return jsonify({'success': False, 'error': 'Invalid image ID'}), 400
+
+    try:
+        deleted = False
+        messages = []
+
+        # 1. Delete from temp
+        temp_path = os.path.join('/tmp', image_id)
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+                deleted = True
+                messages.append("Deleted from temp")
+            except Exception as e:
+                print(f"Error deleting from temp: {e}")
+
+        # 2. Delete from output if exists (in case it was saved)
+        output_path = os.path.join(server.output_folder, image_id)
+        if os.path.exists(output_path):
+            try:
+                os.remove(output_path)
+                deleted = True
+                messages.append("Deleted from output")
+
+                # Also delete metadata yaml if exists
+                yaml_path = os.path.splitext(output_path)[0] + '.yaml'
+                if os.path.exists(yaml_path):
+                    os.remove(yaml_path)
+            except Exception as e:
+                print(f"Error deleting from output: {e}")
+
+        if deleted:
+            return jsonify({'success': True, 'message': ', '.join(messages)})
+        else:
+            return jsonify({'success': False, 'error': 'Image file not found'}), 404
+
+    except Exception as e:
+        print(f"Error deleting image: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 if __name__ == '__main__':
     main()
