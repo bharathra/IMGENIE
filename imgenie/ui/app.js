@@ -363,7 +363,49 @@ function attachEventListeners() {
     loadConfigFromLocalStorage();
 
     // Setup Image Interactions (Zoom/Pan)
+    // Setup Image Interactions (Zoom/Pan)
     setupImageInteraction();
+
+    // Setup Collapsible Sections
+    setupCollapsibles();
+}
+
+function setupCollapsibles() {
+    const cards = document.querySelectorAll('.card');
+
+    // Initially expand first card, collapse others
+    cards.forEach((card, index) => {
+        const header = card.querySelector('.section-header');
+        if (!header) return; // Skip cards without headers if any
+
+        if (index === 0) {
+            card.classList.add('active');
+        } else {
+            card.classList.remove('active');
+        }
+
+        header.addEventListener('click', () => {
+            const isActive = card.classList.contains('active');
+
+            // Close all
+            cards.forEach(c => c.classList.remove('active'));
+
+            if (!isActive) {
+                card.classList.add('active');
+            }
+        });
+    });
+}
+
+function expandSection(sectionClass) {
+    const section = document.querySelector(`.card.${sectionClass}`);
+    if (section) {
+        // Collapse all first
+        document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
+
+        section.classList.add('active');
+        section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
 }
 
 // ===========================
@@ -422,6 +464,8 @@ function handleModelSelect(e) {
             const details = model.description || `Model: ${model.name}`;
             document.getElementById('modelDetailsPlaceholder').textContent = details;
         }
+        // Auto-expand Control section
+        expandSection('model-control');
     } else {
         document.getElementById('modelDetailsPlaceholder').textContent = 'Select a model to view details';
     }
@@ -462,10 +506,11 @@ async function handleLoadModel() {
             document.getElementById('modelStatus').className = 'status-value loaded';
             showToast(`Model "${appState.selectedModel}" loaded successfully`, 'success');
 
-            showToast(`Model "${appState.selectedModel}" loaded successfully`, 'success');
-
             checkModelStatus(); // Update memory usage immediately
             fetchLoRAs(); // Update LoRAs for the new model
+
+            // Auto-advance to Parameters
+            expandSection('parameters');
         } else {
             throw new Error(result.error || 'Unknown error');
         }
@@ -626,6 +671,9 @@ async function handleGenerate() {
     appState.isGenerating = true;
     updateGenerationUI();
 
+    // Auto-expand Generation panel
+    expandSection('generation');
+
     // Start polling progress
     pollGenerationProgress();
 
@@ -782,6 +830,8 @@ function displayResults(imageUrl, params, imageId) {
 
     resultsSection.style.display = 'block';
     resultsSection.scrollIntoView({ behavior: 'smooth' });
+    // Auto-expand Results panel
+    expandSection('results');
 }
 
 function displayDescription(description, metadata) {

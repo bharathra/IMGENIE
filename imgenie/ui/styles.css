@@ -216,23 +216,82 @@ body {
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
     border-radius: 12px;
-    padding: 2rem;
+    padding: 1.5rem 2rem;
     box-shadow: var(--shadow-sm);
     transition: var(--transition);
 }
 
 .card:hover {
     border-color: var(--accent-primary);
-    box-shadow: var(--shadow-md);
 }
 
 .section-header {
     display: flex;
     align-items: center;
     gap: 1rem;
+    cursor: pointer;
+    user-select: none;
+    /* Removed bottom margin/border to handle collapsed state smoothly */
+}
+
+/* Add active state for section header (when content is visible) */
+.card.active .section-header {
     margin-bottom: 1.5rem;
     padding-bottom: 1rem;
     border-bottom: 2px solid var(--border-light);
+}
+
+.step-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    background: var(--accent-primary);
+    color: var(--bg-primary);
+    font-weight: 700;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+}
+
+.section-header h2 {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    flex-grow: 1;
+    /* Pushes chevron to right */
+}
+
+.chevron {
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+    transition: transform 0.3s ease;
+}
+
+.card.active .chevron {
+    transform: rotate(180deg);
+}
+
+.card-content {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.card.active .card-content {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .step-number {
