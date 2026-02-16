@@ -794,22 +794,31 @@ function handleSaveImage() {
 }
 
 function handleCopyMetadata() {
+    const isT2I = appState.currentTask === 'text-to-image';
     const metadata = {
-        model: document.getElementById('metaModel').textContent,
-        time: document.getElementById('metaTime').textContent,
-        resolution: document.getElementById('metaResolution').textContent,
-        steps: document.getElementById('stepsValue').textContent,
-        guidance: document.getElementById('guidanceValue').textContent,
-        strength: document.getElementById('strengthValue') ? document.getElementById('strengthValue').textContent : 'N/A',
-        seed: document.getElementById('seedInput').value || 'random'
+        'Tool': 'Imgenie Web UI',
+        'Date': new Date().toLocaleString(),
+        'Task': appState.currentTask,
+        'Model ID': document.getElementById('metaModel').textContent,
+        'Prompt': isT2I ? document.getElementById('promptInput').value : 'N/A',
+        // 'Negative Prompt': isT2I ? document.getElementById('negPromptInput')?.value || 'None' : 'N/A', // If you have negative prompt input
+        'Steps': isT2I ? document.getElementById('stepsValue').textContent : 'N/A',
+        'Guidance Scale': isT2I ? document.getElementById('guidanceValue').textContent : 'N/A',
+        'Resolution': document.getElementById('metaResolution').textContent,
+        'Seed': isT2I ? document.getElementById('seedInput').value || 'Random' : 'N/A',
+        'Ref Strength': isT2I ? (document.getElementById('strengthValue') ? document.getElementById('strengthValue').textContent : 'N/A') : 'N/A',
+        'Ref Image Used': isT2I && document.getElementById('referenceImage').files.length > 0 ? 'Yes' : 'No',
+        'Output Filename': `imgenie-${Date.now()}.png` // Best guess matching save func
     };
 
-    const text = Object.entries(metadata)
-        .map(([key, value]) => `${key}: ${value}`)
-        .join('\n');
+    let text = "=== IMGENIE GENERATION METADATA ===\n";
+    Object.entries(metadata).forEach(([key, value]) => {
+        text += `${key}: ${value}\n`;
+    });
+    text += "===================================";
 
     navigator.clipboard.writeText(text).then(() => {
-        showToast('Metadata copied to clipboard', 'success');
+        showToast('Full metadata copied to clipboard', 'success');
     });
 }
 

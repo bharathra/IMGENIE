@@ -35,7 +35,7 @@ class ImgenieServer:
         
         self.output_folder = Path(self.config.get('output_path', '/root/.imgenie/output'))
         self.input_folder = Path(self.config.get('input_path', '/root/.imgenie/input'))
-        self.lora_path = Path(self.config.get('lora_path', '/root/.imgenie/loras')) # Default fallback
+        self.lora_path = Path(self.config.get('lora_path', '/root/.imgenie/loras'))
         
         # Load model configs
         self.t2i_cfg = self.config.get('txt2img', {})

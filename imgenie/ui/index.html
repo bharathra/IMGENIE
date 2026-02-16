@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IMGENIE - Image Generation Studio</title>
-    <link href="https://fonts.googleapis.com/css2?family=M+Plus+2:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=M+Plus+2:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
     <link rel="stylesheet" href="ui/styles.css">
 </head>
+
 <body>
     <!-- Header -->
     <header class="header">
@@ -108,7 +111,7 @@
                     <span class="step-number">4</span>
                     <h2>Configuration Parameters</h2>
                 </div>
-                
+
                 <div class="param-group txt2img-only">
                     <label for="stepsSlider" class="param-label">
                         <span>Inference Steps</span>
@@ -138,19 +141,12 @@
                     </select>
                 </div>
 
-                <div class="param-group txt2img-only">
-                    <label for="strengthSlider" class="param-label">
-                        <span>Img2Img Strength</span>
-                        <span class="param-value" id="strengthValue">0.8</span>
-                    </label>
-                    <input type="range" id="strengthSlider" min="0.0" max="1.0" step="0.05" value="0.8" class="slider">
-                    <div class="param-hint">Influence of reference image (0.0 = exact copy, 1.0 = full change)</div>
-                </div>
 
                 <div class="param-group txt2img-only">
                     <label for="seedInput" class="param-label">
                         <span>Seed</span>
-                        <button type="button" class="btn-icon" id="randomSeedBtn" title="Generate random seed">🎲</button>
+                        <button type="button" class="btn-icon" id="randomSeedBtn"
+                            title="Generate random seed">🎲</button>
                     </label>
                     <input type="number" id="seedInput" placeholder="Leave empty for random seed" class="param-input">
                     <div class="param-hint">Use the same seed to reproduce results</div>
@@ -171,7 +167,8 @@
                             <span>📝 Prompt</span>
                             <span class="char-count"><span id="promptCount">0</span>/1000</span>
                         </label>
-                        <textarea id="promptInput" class="prompt-textarea" placeholder="Describe the image you want to generate..." maxlength="1000"></textarea>
+                        <textarea id="promptInput" class="prompt-textarea"
+                            placeholder="Describe the image you want to generate..." maxlength="1000"></textarea>
                     </div>
 
                     <div class="input-group">
@@ -184,6 +181,18 @@
                             </div>
                             <div class="image-preview" id="imagePreview"></div>
                         </div>
+
+                        <div class="param-group txt2img-only" style="margin-top: 15px;">
+                            <label for="strengthSlider" class="param-label">
+                                <span>Ref Image Strength</span>
+                                <span class="param-value" id="strengthValue">0.8</span>
+                            </label>
+                            <input type="range" id="strengthSlider" min="0.0" max="1.0" step="0.05" value="0.8"
+                                class="slider">
+                            <div class="param-hint">Influence of reference image (0.0 = exact copy, 1.0 = full change)
+                            </div>
+                        </div>
+
                     </div>
                 </div>
 
@@ -317,4 +326,5 @@
 
     <script src="app.js"></script>
 </body>
+
 </html>
