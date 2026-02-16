@@ -179,6 +179,52 @@ def get_model_resolutions(model_id):
     return jsonify({'model_id': model_id, 'task': task, 'resolutions': resolutions})
 
 
+@app.route('/api/loras', methods=['GET'])
+def get_loras():
+    """Get available LoRAs for the current T2I model"""
+    if not server:
+        return jsonify({})
+
+    loras = {
+        'characters': [],
+        'concepts': []
+    }
+    
+    # Use current loaded model's config, or fallback to first available
+    model_id = server.current_t2i_id
+    if not model_id and server.t2i_cfg:
+        model_id = list(server.t2i_cfg.keys())[0]
+
+    if not model_id or model_id not in server.t2i_cfg:
+        return jsonify(loras)
+
+    cfg = server.t2i_cfg[model_id]
+    
+    # Paths from config
+    char_path_str = cfg.get('character_lora_path')
+    concept_path_str = cfg.get('concept_lora_path')
+
+    # Helper to scan dir
+    def scan_dir(path_str):
+        found = []
+        if not path_str:
+            return found
+        p = Path(path_str)
+        # If relative, prepend root if exists
+        if not p.is_absolute() and server.config.get('root_dir'):
+            p = Path(server.config.get('root_dir')) / p
+            
+        if p.exists() and p.is_dir():
+            for f in p.glob('*.safetensors'):
+                found.append(f.stem)
+        return sorted(found)
+
+    loras['characters'] = scan_dir(char_path_str)
+    loras['concepts'] = scan_dir(concept_path_str)
+
+    return jsonify(loras)
+
+
 @app.route('/api/model/load', methods=['POST'])
 def load_model():
     """Load a model"""
@@ -446,6 +492,52 @@ def generate():
                      width, height = 720, 720
             except:
                 width, height = 720, 720
+
+            # Handle LoRAs
+            loras = data.get('loras', [])
+            if server.t2i_model:
+                try:
+                    # Always reset loras if none provided? 
+                    # image_generator.load_loras handles empty list by unloading.
+                    # So we should always call it if we want to support "no lora" when user clears selection.
+                    
+                    lora_paths = []
+                    lora_weights = []
+                    
+                    # Get base paths from config
+                    # We need the model config for paths. 
+                    # server.current_t2i_id should be set if model is loaded.
+                    model_cfg = server.t2i_cfg.get(server.current_t2i_id, {})
+                    char_base = model_cfg.get('character_lora_path')
+                    concept_base = model_cfg.get('concept_lora_path')
+
+                    for lora in loras:
+                        # Expected format: {'type': 'character'|'concept', 'name': 'filename', 'weight': 1.0}
+                        l_type = lora.get('type')
+                        l_name = lora.get('name')
+                        l_weight = float(lora.get('weight', 1.0))
+                        
+                        if not l_name: continue
+                        
+                        full_path = None
+                        if l_type == 'character' and char_base:
+                            full_path = os.path.join(char_base, f"{l_name}.safetensors")
+                        elif l_type == 'concept' and concept_base:
+                            full_path = os.path.join(concept_base, f"{l_name}.safetensors")
+                            
+                        if full_path and os.path.exists(full_path):
+                            lora_paths.append(full_path)
+                            lora_weights.append(l_weight)
+                    
+                    # Call load_loras even if empty to clear previous
+                    print(f"Loading LoRAs: {lora_paths}")
+                    server.t2i_model.load_loras(lora_paths, lora_weights)
+
+                except Exception as e:
+                    print(f"Error loading LoRAs: {e}")
+                    import traceback
+                    traceback.print_exc()
+
 
             # Call generate
             try:

@@ -39,6 +39,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Start polling for status/memory updates
     setInterval(checkModelStatus, 5000);
+
+    // Initial fetch of LoRAs
+    fetchLoRAs();
 });
 
 // ===========================
@@ -459,7 +462,10 @@ async function handleLoadModel() {
             document.getElementById('modelStatus').className = 'status-value loaded';
             showToast(`Model "${appState.selectedModel}" loaded successfully`, 'success');
 
+            showToast(`Model "${appState.selectedModel}" loaded successfully`, 'success');
+
             checkModelStatus(); // Update memory usage immediately
+            fetchLoRAs(); // Update LoRAs for the new model
         } else {
             throw new Error(result.error || 'Unknown error');
         }
@@ -663,8 +669,29 @@ async function handleGenerate() {
                     strength: document.getElementById('strengthSlider') ? document.getElementById('strengthSlider').value : 0.8,
                     resolution: document.getElementById('resolutionSelect').value,
                     seed: document.getElementById('seedInput').value || -1,
-                    prompt: document.getElementById('promptInput').value
+                    strength: document.getElementById('strengthSlider') ? document.getElementById('strengthSlider').value : 0.8,
+                    resolution: document.getElementById('resolutionSelect').value,
+                    seed: document.getElementById('seedInput').value || -1,
+                    prompt: document.getElementById('promptInput').value,
+                    loras: []
                 };
+
+                // Add LoRAs
+                const addLoRa = (selectId, weightId, type) => {
+                    const el = document.getElementById(selectId);
+                    const wEl = document.getElementById(weightId);
+                    if (el && el.value) {
+                        payload.loras.push({
+                            name: el.value,
+                            weight: wEl ? wEl.value : 1.0,
+                            type: type
+                        });
+                    }
+                };
+
+                addLoRa('char1Select', 'char1Weight', 'character');
+                addLoRa('char2Select', 'char2Weight', 'character');
+                addLoRa('conceptSelect', 'conceptWeight', 'concept');
 
                 response = await fetch(`${API_BASE}/generate`, {
                     method: 'POST',
@@ -996,5 +1023,47 @@ function setupImageInteraction() {
         pointY = 0;
         updateTransform();
     });
+}
+
+
+// ===========================
+// LORA MANAGEMENT
+// ===========================
+
+async function fetchLoRAs() {
+    try {
+        const response = await fetch(`${API_BASE}/loras`);
+        if (response.ok) {
+            const data = await response.json();
+            updateLoRaDropdowns(data.characters || [], data.concepts || []);
+        }
+    } catch (e) {
+        console.error("Error fetching LoRAs:", e);
+    }
+}
+
+function updateLoRaDropdowns(characters, concepts) {
+    const updateSelect = (id, items) => {
+        const select = document.getElementById(id);
+        if (!select) return;
+
+        const current = select.value;
+        select.innerHTML = '<option value="">None</option>';
+
+        items.forEach(item => {
+            const opt = document.createElement('option');
+            opt.value = item;
+            opt.textContent = item;
+            select.appendChild(opt);
+        });
+
+        if (current && items.includes(current)) {
+            select.value = current;
+        }
+    };
+
+    updateSelect('char1Select', characters);
+    updateSelect('char2Select', characters);
+    updateSelect('conceptSelect', concepts);
 }
 

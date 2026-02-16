@@ -7,7 +7,8 @@ txt2img:
     description: "Text-to-Image generation with ZImage model"
     model_path: "/root/.imgenie/models/TongyiMAI.ZImageTurbo"
     prompts_yaml: "/root/.imgenie/prompts/prompts.yaml"
-    lora_path: "/root/.imgenie/loras"
+    character_lora_path: "/root/.imgenie/loras/characters"
+    concept_lora_path: "/root/.imgenie/loras/concepts"
     resolution_options: ["720x720", "1024x720", "1024x1024"]
 
 img2txt:

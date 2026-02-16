@@ -1215,3 +1215,59 @@ body {
         width: 100%;
     }
 }
+
+/* ===========================
+   LORA ADAPTERS
+   =========================== */
+
+.lora-adapters {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.lora-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.lora-control {
+    display: flex;
+    gap: 0.8rem;
+}
+
+.lora-select {
+    flex: 1;
+    padding: 0.8rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-family);
+    font-size: 1rem;
+    transition: var(--transition);
+}
+
+.lora-select:hover, .lora-select:focus {
+    border-color: var(--accent-primary);
+    outline: none;
+}
+
+.lora-weight {
+    width: 90px;
+    padding: 0.8rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-family);
+    font-size: 1rem;
+    text-align: center;
+    transition: var(--transition);
+}
+
+.lora-weight:hover, .lora-weight:focus {
+    border-color: var(--accent-primary);
+    outline: none;
+}

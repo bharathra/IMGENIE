@@ -212,10 +212,48 @@
                 </div>
             </section>
 
-            <!-- Section 6: Generation -->
-            <section class="card generation">
+            <!-- Section 6: LoRA Adapters -->
+            <section class="card lora-adapters txt2img-only" id="loraSection">
                 <div class="section-header">
                     <span class="step-number">6</span>
+                    <h2>LoRA Adapters</h2>
+                </div>
+                
+                <div class="lora-group">
+                    <label class="input-label" for="char1Select">Character 1</label>
+                    <div class="lora-control">
+                        <select id="char1Select" class="lora-select">
+                            <option value="">None</option>
+                        </select>
+                        <input type="number" id="char1Weight" class="lora-weight" value="0.66" step="0.05" min="0" max="2" title="Weight">
+                    </div>
+                </div>
+
+                <div class="lora-group">
+                    <label class="input-label" for="char2Select">Character 2</label>
+                    <div class="lora-control">
+                        <select id="char2Select" class="lora-select">
+                            <option value="">None</option>
+                        </select>
+                        <input type="number" id="char2Weight" class="lora-weight" value="0.66" step="0.05" min="0" max="2" title="Weight">
+                    </div>
+                </div>
+
+                <div class="lora-group">
+                    <label class="input-label" for="conceptSelect">Concept</label>
+                    <div class="lora-control">
+                        <select id="conceptSelect" class="lora-select">
+                            <option value="">None</option>
+                        </select>
+                        <input type="number" id="conceptWeight" class="lora-weight" value="0.33" step="0.05" min="0" max="2" title="Weight">
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section 7: Generation -->
+            <section class="card generation">
+                <div class="section-header">
+                    <span class="step-number">7</span>
                     <h2>Generate</h2>
                 </div>
                 <button class="btn btn-generate" id="generateBtn">
@@ -235,10 +273,10 @@
                 </div>
             </section>
 
-            <!-- Section 7: Results -->
+            <!-- Section 8: Results -->
             <section class="card results" id="resultsSection" style="display: none;">
                 <div class="section-header">
-                    <span class="step-number">7</span>
+                    <span class="step-number">8</span>
                     <h2>Generated Image</h2>
                 </div>
                 <div class="result-container">
