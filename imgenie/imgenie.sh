@@ -73,11 +73,45 @@ fi
 # echo ""
 
 # Check if container is running
-if ! docker ps | grep -q "imgenie"; then
-    echo -e "${RED}❌ Docker container 'imgenie' is not running.${NC}"
-    echo -e "${YELLOW}Please start it first.${NC}"
-    exit 1
+if ! docker ps --format '{{.Names}}' | grep -q "^imgenie$"; then
+    # Check if container exists (created/exited)
+    if docker ps -a --format '{{.Names}}' | grep -q "^imgenie$"; then
+        echo -e "${YELLOW}Container 'imgenie' exists but is not running.${NC}"
+        echo -e "${GREEN}Starting existing container 'imgenie'...${NC}"
+        docker start imgenie
+    else
+        echo -e "${YELLOW}Container 'imgenie' does not exist.${NC}"
+        read -p "Do you want to create and start it from imgenie:latest? (y/N) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            echo -e "${GREEN}Creating and starting 'imgenie' container...${NC}"
+            COMPOSE_FILE="$SCRIPT_DIR/../.devcontainer/docker-compose.yml"
+            if [ -f "$COMPOSE_FILE" ]; then
+                docker compose -f "$COMPOSE_FILE" up -d
+            else
+                echo -e "${RED}❌ Compose file not found at $COMPOSE_FILE${NC}"
+                exit 1
+            fi
+        else
+            echo -e "${RED}Aborted. Please start the container manually.${NC}"
+            exit 1
+        fi
+    fi
+
+    # Final check if running
+    if ! docker ps --format '{{.Names}}' | grep -q "^imgenie$"; then
+        echo -e "${RED}❌ Failed to start container 'imgenie'.${NC}"
+        exit 1
+    fi
+    echo -e "${GREEN}✓ Container 'imgenie' is running.${NC}"
 fi
 
 # Run the server inside docker
-docker exec -it imgenie python3 /IMGENIE/imgenie/imgenie_server.py --port=$PORT --config="$CONTAINER_CONFIG_FILE"
+# Determine docker flags
+DOCKER_FLAGS="-i"
+if [ -t 0 ]; then
+    DOCKER_FLAGS="-it"
+fi
+
+# Run the server inside docker
+docker exec -e PYTHONUNBUFFERED=1 $DOCKER_FLAGS imgenie python3 /IMGENIE/imgenie/imgenie_server.py --port=$PORT --config="$CONTAINER_CONFIG_FILE"
