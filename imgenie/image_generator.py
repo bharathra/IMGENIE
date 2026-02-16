@@ -125,7 +125,8 @@ class ImageGenerator:
                  strength: float = 0.8,
                  seed: Optional[int] = None,
                  height: int = 720,
-                 width: int = 720):
+                 width: int = 720,
+                 callback = None):
         """
         Generate edited images based on reference image and text prompt.
 
@@ -139,6 +140,7 @@ class ImageGenerator:
             strength: How much to modify the original image (0.0-1.0)
                      0 = no change, 1 = complete regeneration
             seed: Random seed for reproducibility
+            callback: Optional callback function for progress tracking
         """
 
         try:
@@ -161,6 +163,7 @@ class ImageGenerator:
                         strength=strength,
                         height=height,
                         width=width,
+                        callback_on_step_end=callback
                     )
             else:
 
@@ -176,6 +179,7 @@ class ImageGenerator:
                         num_images_per_prompt=number_of_images,
                         height=height,
                         width=width,
+                        callback_on_step_end=callback
                     )
 
             output_paths = []

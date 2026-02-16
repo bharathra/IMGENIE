@@ -1,4 +1,3 @@
-root_dir: "/root/.imgenie"
 input_path: "/root/.imgenie/input"
 output_path: "/root/.imgenie/output"
 
@@ -6,16 +5,16 @@ txt2img:
   ZImageTurbo:
     name: "ZImage Turbo"
     description: "Text-to-Image generation with ZImage model"
-    model_path: "models/TongyiMAI.ZImageTurbo"
-    prompts_yaml: "prompts/prompts.yaml"
-    lora_path: "loras"
+    model_path: "/root/.imgenie/models/TongyiMAI.ZImageTurbo"
+    prompts_yaml: "/root/.imgenie/prompts/prompts.yaml"
+    lora_path: "/root/.imgenie/loras"
     resolution_options: ["720x720", "1024x720", "1024x1024"]
 
 img2txt:
   JoyCaption:
     name: "Joy Caption"
     description: "Image-to-Text description with JoyCaption model"
-    model_path: "models/fancyfeast.joycaption/weights"
+    model_path: "/root/.imgenie/models/fancyfeast.joycaption/weights"
     threshold: 0.3
     system_prompt: "You are a helpful image captioner."
     max_new_tokens: 512

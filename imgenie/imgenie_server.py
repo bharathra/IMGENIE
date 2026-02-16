@@ -37,10 +37,6 @@ class ImgenieServer:
         self.input_folder = Path(self.config.get('input_path', '/root/.imgenie/input'))
         self.lora_path = Path(self.config.get('lora_path', '/root/.imgenie/loras')) # Default fallback
         
-        # Create directories
-        self.output_folder.mkdir(parents=True, exist_ok=True)
-        self.input_folder.mkdir(parents=True, exist_ok=True)
-        
         # Load model configs
         self.t2i_cfg = self.config.get('txt2img', {})
         self.i2t_cfg = self.config.get('img2txt', {})
@@ -208,7 +204,7 @@ def load_model():
                 'success': False,
                 'error': f'Model {model_id} not found. Available: {available}'
             }), 400
-            
+
         if current_loaded == model_id:
              return jsonify({
                 'success': True,
@@ -322,33 +318,80 @@ def unload_model():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+import torch
+
+# Global progress tracking
+generation_progress = {
+    'status': 'idle',
+    'progress': 0,
+    'step': 0,
+    'total_steps': 0,
+    'message': ''
+}
+
+def progress_callback(step: int, timestep: int, latents: torch.FloatTensor):
+    """Callback for diffusion pipeline"""
+    global generation_progress
+    generation_progress['status'] = 'generating'
+    generation_progress['step'] = step
+    # exact progress calculation depends on total steps which we might need to pass or infer
+    # For now, just store the step.
+                                                                                               
+@app.route('/api/progress', methods=['GET'])
+def get_progress():
+    """Get generation progress"""
+    return jsonify(generation_progress)
+
+
 @app.route('/api/model/status', methods=['GET'])
 def model_status():
-    """Get model status"""
-    return jsonify({
+    """Get model status and GPU memory usage"""
+    status = {
         't2i': server.current_t2i_id is not None,
         'i2t': server.current_i2t_id is not None,
         't2i_model': server.current_t2i_id,
-        'i2t_model': server.current_i2t_id
-    })
+        'i2t_model': server.current_i2t_id,
+        'gpu_memory': {
+            'allocated': 0,
+            'reserved': 0,
+            'max': 0
+        }
+    }
+    
+    try:
+        if torch.cuda.is_available():
+            status['gpu_memory'] = {
+                'allocated': torch.cuda.memory_allocated() / (1024**3), # GB
+                'reserved': torch.cuda.memory_reserved() / (1024**3),   # GB
+                'max': torch.cuda.get_device_properties(0).total_memory / (1024**3) # GB
+            }
+    except Exception as e:
+        print(f"Error getting GPU status: {e}")
+        
+    return jsonify(status)
 
 
 @app.route('/api/generate', methods=['POST'])
 def generate():
     """Generate image or describe image"""
+    global generation_progress
     try:
         if not server:
             return jsonify({'success': False, 'error': 'Server not initialized'}), 500
 
-        data = request.json or request.form
+        if request.is_json:
+            data = request.json
+        else:
+            data = request.form
         task = data.get('task', 'text-to-image')
         
-        # Handle FormData for image upload
-        if request.files:
+        # Handle FormData for image upload - check if it is really image-to-text or img2img
+        if request.files and 'task' not in request.form:
+             # Fallback if task not explicit in form
              task = request.form.get('task', 'image-to-text')
 
         if task == 'text-to-image':
-            # Text-to-image generation
+            # Text-to-image generation (or Img2Img)
             if not server.t2i_model:
                 return jsonify({'success': False, 'error': 'T2I model not loaded'}), 400
 
@@ -357,7 +400,33 @@ def generate():
             guidance_scale = float(data.get('guidance_scale', 7.5))
             resolution = data.get('resolution', '720x720')
             seed = data.get('seed', '')
+            strength = float(data.get('strength', 0.8)) # Default strength
             
+            ref_image_path = None
+            if 'image' in request.files:
+                file = request.files['image']
+                if file and allowed_file(file.filename):
+                    filename = f"ref_{int(time.time())}_{file.filename}"
+                    ref_image_path = os.path.join(UPLOAD_FOLDER, filename)
+                    file.save(ref_image_path)
+            
+            # Reset progress
+            generation_progress = {
+                'status': 'starting',
+                'progress': 0,
+                'step': 0,
+                'total_steps': steps,
+                'message': 'Starting...'
+            }
+
+            def update_progress(pipe, step, timestep, callback_kwargs):
+                global generation_progress
+                generation_progress['status'] = 'generating'
+                generation_progress['step'] = step
+                generation_progress['progress'] = int((step / steps) * 100)
+                generation_progress['message'] = f'Step {step}/{steps}'
+                return callback_kwargs
+
             try:
                 seed = int(seed) if seed else -1
             except:
@@ -386,8 +455,16 @@ def generate():
                     guidance_scale=guidance_scale,
                     height=height,
                     width=width,
-                    seed=seed if seed >= 0 else None
+                    seed=seed if seed >= 0 else None,
+                    strength=strength,
+                    callback=update_progress,
+                    ref_image_path=ref_image_path
                 )
+                
+                # Mark as done
+                generation_progress['status'] = 'completed'
+                generation_progress['progress'] = 100
+                generation_progress['message'] = 'Completed'
                 
                 if output_paths and len(output_paths) > 0:
                     latest = output_paths[-1] # Get the last generated image
@@ -397,12 +474,14 @@ def generate():
                     return jsonify({
                         'success': True,
                         'image': f'data:image/png;base64,{img_base64}',
-                        'params': {'prompt': prompt, 'steps': steps, 'guidance_scale': guidance_scale, 'resolution': f'{width}x{height}'}
+                        'params': {'prompt': prompt, 'steps': steps, 'guidance_scale': guidance_scale, 'resolution': f'{width}x{height}', 'strength': strength}
                     })
                 else:
                     return jsonify({'success': False, 'error': 'No image generated'}), 500
                     
             except Exception as gen_err:
+                 generation_progress['status'] = 'failed'
+                 generation_progress['message'] = str(gen_err)
                  print(f"Generation error: {gen_err}")
                  import traceback
                  traceback.print_exc()
