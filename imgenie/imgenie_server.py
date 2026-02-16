@@ -457,7 +457,7 @@ def generate():
                     width=width,
                     seed=seed if seed >= 0 else None,
                     callback=update_progress,
-                    ref_image_path=ref_image_path
+                    ref_image_path=ref_image_path,
                     strength=strength,
                 )
 

@@ -358,6 +358,9 @@ function attachEventListeners() {
 
     // Initial Load of config
     loadConfigFromLocalStorage();
+
+    // Setup Image Interactions (Zoom/Pan)
+    setupImageInteraction();
 }
 
 // ===========================
@@ -891,3 +894,107 @@ function showToast(message, type = 'info', duration = 3000) {
         setTimeout(() => toast.remove(), 300);
     }, duration);
 }
+
+// ===========================
+// IMAGE INTERACTION
+// ===========================
+
+function setupImageInteraction() {
+    const viewport = document.getElementById('imageViewport');
+    const image = document.getElementById('generatedImage');
+
+    if (!viewport || !image) return;
+
+    let scale = 1;
+    let pointX = 0;
+    let pointY = 0;
+    let startX = 0;
+    let startY = 0;
+    let isPanning = false;
+
+    viewport.style.cursor = 'grab';
+
+    function updateTransform() {
+        image.style.transform = `translate(${pointX}px, ${pointY}px) scale(${scale})`;
+    }
+
+    // Zoom
+    viewport.addEventListener('wheel', (e) => {
+        e.preventDefault();
+
+        const rect = viewport.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+
+        // Calculate offset of image relative to viewport due to flex centering
+        // We use the image's bounding rect relative to viewport when scale=1, translate=0
+        // But since we are transforming it, image.getBoundingClientRect() changes.
+        // However, image.offsetLeft/Top are relative to the offsetParent (viewport).
+        // They are reliable if the element is not transformed? No, transforms affect layout? 
+        // No, transforms do not affect flow layout.
+
+        const offX = image.offsetLeft;
+        const offY = image.offsetTop;
+
+        // Mouse relative to the *initial layout position* of the image
+        const relMouseX = mouseX - offX;
+        const relMouseY = mouseY - offY;
+
+        // Calculate point in "image coordinates" (0 to width/height)
+        const xs = (relMouseX - pointX) / scale;
+        const ys = (relMouseY - pointY) / scale;
+
+        const delta = -Math.sign(e.deltaY);
+        const step = 0.1;
+
+        if (delta > 0) {
+            scale *= (1 + step);
+        } else {
+            scale /= (1 + step);
+        }
+
+        scale = Math.min(Math.max(0.1, scale), 10);
+
+        // Update pointX/Y to keep xs/ys under mouse
+        pointX = relMouseX - xs * scale;
+        pointY = relMouseY - ys * scale;
+
+        updateTransform();
+    });
+
+    // Pan
+    viewport.addEventListener('mousedown', (e) => {
+        if (e.button === 0) { // Left click
+            e.preventDefault();
+            startX = e.clientX - pointX;
+            startY = e.clientY - pointY;
+            isPanning = true;
+            viewport.style.cursor = 'grabbing';
+        }
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isPanning) return;
+        e.preventDefault();
+        pointX = e.clientX - startX;
+        pointY = e.clientY - startY;
+        updateTransform();
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (isPanning) {
+            isPanning = false;
+            viewport.style.cursor = 'grab';
+        }
+    });
+
+    // Reset
+    viewport.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        scale = 1;
+        pointX = 0;
+        pointY = 0;
+        updateTransform();
+    });
+}
+
