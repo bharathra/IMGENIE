@@ -377,7 +377,7 @@ function attachEventListeners() {
     }
 
     // File uploads
-    setupFileUpload('uploadArea', 'referenceImage', 'imagePreview');
+    setupFileUpload('uploadArea', 'referenceImage', 'imagePreview', 'clearRefImageBtn');
     setupFileUpload('uploadAreaDesc', 'imageForDesc', 'imagePreviewDesc');
 
     // Generation
@@ -414,11 +414,16 @@ function setupCollapsibles() {
 
     // Initially expand first card, collapse others (except generation)
     cards.forEach((card, index) => {
-
-        // Leave generation card alone (it has no chevron and no card-content wrapper now, always visible)
         const header = card.querySelector('.section-header');
         if (!header) return;
 
+        // Special handling for generation card - always visible
+        if (card.classList.contains('generation')) {
+            card.classList.add('active');
+            return; // Skip adding click listener
+        }
+
+        // Initially expand first card, collapse others
         if (index === 0) {
             card.classList.add('active');
         } else {
@@ -428,7 +433,7 @@ function setupCollapsibles() {
         header.addEventListener('click', () => {
             const isActive = card.classList.contains('active');
 
-            // Close all
+            // Close all excpet generation
             cards.forEach(c => {
                 if (!c.classList.contains('generation')) {
                     c.classList.remove('active');
@@ -445,8 +450,12 @@ function setupCollapsibles() {
 function expandSection(sectionClass) {
     const section = document.querySelector(`.card.${sectionClass}`);
     if (section) {
-        // Collapse all first
-        document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
+        // Collapse all first, except generation
+        document.querySelectorAll('.card').forEach(c => {
+            if (!c.classList.contains('generation')) {
+                c.classList.remove('active');
+            }
+        });
 
         section.classList.add('active');
         section.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -615,9 +624,9 @@ async function handleDeleteImage() {
         return;
     }
 
-    if (!confirm('Are you sure you want to delete this image? This cannot be undone.')) {
-        return;
-    }
+    // if (!confirm('Are you sure you want to delete this image? This cannot be undone.')) {
+    //     return;
+    // }
 
     const deleteBtn = document.getElementById('deleteImageBtn');
     let originalText = '🗑️ Delete';
@@ -660,10 +669,20 @@ async function handleDeleteImage() {
     }
 }
 
-function setupFileUpload(uploadAreaId, fileInputId, previewId) {
+function setupFileUpload(uploadAreaId, fileInputId, previewId, clearBtnId = null) {
     const uploadArea = document.getElementById(uploadAreaId);
     const fileInput = document.getElementById(fileInputId);
     const preview = document.getElementById(previewId);
+
+    if (clearBtnId) {
+        const clearBtn = document.getElementById(clearBtnId);
+        clearBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            fileInput.value = '';
+            preview.innerHTML = '';
+            clearBtn.style.display = 'none';
+        });
+    }
 
     uploadArea.addEventListener('click', () => fileInput.click());
 
@@ -686,21 +705,34 @@ function setupFileUpload(uploadAreaId, fileInputId, previewId) {
         const files = e.dataTransfer.files;
         if (files.length > 0) {
             fileInput.files = files;
-            handleFileSelect(fileInput, preview);
+            const success = handleFileSelect(fileInput, preview);
+            if (clearBtnId) {
+                document.getElementById(clearBtnId).style.display = success ? 'block' : 'none';
+            }
         }
     });
 
-    fileInput.addEventListener('change', () => handleFileSelect(fileInput, preview));
+    fileInput.addEventListener('change', () => {
+        const success = handleFileSelect(fileInput, preview);
+        if (clearBtnId) {
+            document.getElementById(clearBtnId).style.display = success ? 'block' : 'none';
+        }
+    });
 }
 
 function handleFileSelect(fileInput, preview) {
     const file = fileInput.files[0];
-    if (!file) return;
+    if (!file) {
+        // Input cleared or empty, clear preview too
+        preview.innerHTML = '';
+        return false;
+    }
 
     if (!file.type.startsWith('image/')) {
         showToast('Please select an image file', 'error');
         fileInput.value = '';
-        return;
+        preview.innerHTML = '';
+        return false;
     }
 
     const reader = new FileReader();
@@ -709,6 +741,7 @@ function handleFileSelect(fileInput, preview) {
         showToast('Image loaded successfully', 'success');
     };
     reader.readAsDataURL(file);
+    return true;
 }
 
 // ===========================

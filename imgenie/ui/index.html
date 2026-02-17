@@ -244,6 +244,9 @@
                                     <p>Drag and drop an image here, or click to select</p>
                                 </div>
                                 <div class="image-preview" id="imagePreview"></div>
+                                <button id="clearRefImageBtn" class="btn-icon"
+                                    style="display: none; position: absolute; top: 10px; right: 10px; z-index: 10;"
+                                    title="Clear reference image">❌</button>
                             </div>
 
                             <div class="param-group txt2img-only" style="margin-top: 15px;">
@@ -283,7 +286,6 @@
                 <div class="section-header">
                     <span class="step-number">7</span>
                     <h2>Generate</h2>
-                    <span class="chevron">▼</span>
                 </div>
                 <div class="card-content">
                     <button class="btn btn-generate" id="generateBtn">
