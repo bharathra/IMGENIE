@@ -546,6 +546,8 @@ def generate():
                 except Exception as e:
                     print(f"Error parsing LoRAs JSON: {e}")
                     loras = []
+            char_name = None
+            concept_name = None
             if server.t2i_model:
                 try:
                     # Always reset loras if none provided? 
@@ -569,6 +571,11 @@ def generate():
                         l_weight = float(lora.get('weight', 1.0))
                         
                         if not l_name: continue
+
+                        if l_type == 'character' and not char_name:
+                            char_name = l_name
+                        elif l_type == 'concept' and not concept_name:
+                            concept_name = l_name
                         
                         full_path = None
                         if l_type == 'character' and char_base:
@@ -589,6 +596,11 @@ def generate():
                     import traceback
                     traceback.print_exc()
 
+
+            if char_name:
+                prompt = prompt.replace('__CHARACTER__', char_name)
+            if concept_name:
+                prompt = prompt.replace('__CONCEPT__', concept_name)
 
             # Call generate
             try:
