@@ -337,7 +337,7 @@ function attachEventListeners() {
 
     document.getElementById('randomSeedBtn').addEventListener('click', () => {
         document.getElementById('seedInput').value = Math.floor(Math.random() * 1000000);
-        showToast('Seed randomized', 'info');
+        // showToast('Seed randomized', 'info');
         saveConfigToLocalStorage();
     });
 
@@ -430,7 +430,9 @@ function setupCollapsibles() {
             card.classList.remove('active');
         }
 
-        header.addEventListener('click', () => {
+        header.addEventListener('click', (e) => {
+            if (e.target.closest('button')) return; // Ignore button clicks
+
             const isActive = card.classList.contains('active');
 
             // Determine scope for collapsing siblings
@@ -570,7 +572,7 @@ async function handleLoadModel() {
             appState.modelLoaded = true;
             document.getElementById('modelStatus').textContent = 'Loaded ✓';
             document.getElementById('modelStatus').className = 'status-value loaded';
-            showToast(`Model "${appState.selectedModel}" loaded successfully`, 'success');
+            // showToast(`Model "${appState.selectedModel}" loaded successfully`, 'success');
 
             checkModelStatus(); // Update memory usage immediately
             fetchLoRAs(); // Update LoRAs for the new model
@@ -614,7 +616,7 @@ async function handleUnloadModel() {
             document.getElementById('modelStatus').textContent = 'Not Loaded';
             document.getElementById('modelStatus').className = 'status-value unloaded';
             updateMemoryUsage(0, 8); // Reset memory display
-            showToast('Model unloaded successfully', 'success');
+            // showToast('Model unloaded successfully', 'success');
         } else {
             throw new Error(result.error);
         }
@@ -662,10 +664,17 @@ async function handleDeleteImage() {
         const result = await response.json();
 
         if (result.success) {
-            showToast('Image deleted successfully', 'success');
+            // showToast('Image deleted successfully', 'success');
             // Clear viewport
-            document.getElementById('generatedImage').src = '';
+            // Clear viewport
+            const imgEl = document.getElementById('generatedImage');
+            imgEl.removeAttribute('src');
+            imgEl.style.display = 'none'; // Explicitly hide
+
+            // In landscape, section is forced visible, so hiding display:none is moot there
+            // but harmless for portrait.
             document.getElementById('resultsSection').style.display = 'none';
+
             appState.lastImageId = null;
         } else {
             throw new Error(result.error || 'Failed to delete image');
@@ -750,7 +759,7 @@ function handleFileSelect(fileInput, preview) {
     const reader = new FileReader();
     reader.onload = (e) => {
         preview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
-        showToast('Image loaded successfully', 'success');
+        // showToast('Image loaded successfully', 'success');
     };
     reader.readAsDataURL(file);
     return true;
@@ -929,12 +938,12 @@ async function handleGenerate() {
 
         if (appState.currentTask === 'text-to-image') {
             displayResults(result.image, result.params || {}, result.image_id);
-            showToast('Image generated successfully!', 'success');
+            // showToast('Image generated successfully!', 'success');
         } else {
             displayDescription(result.description, {
                 model: appState.selectedModel
             });
-            showToast('Image described successfully!', 'success');
+            // showToast('Image described successfully!', 'success');
         }
 
     } catch (error) {
@@ -1053,7 +1062,7 @@ async function handleSaveImage() {
         const result = await response.json();
 
         if (result.success) {
-            showToast(`Image saved to server output folder`, 'success');
+            // showToast(`Image saved to server output folder`, 'success');
         } else {
             showToast(`Save failed: ${result.error}`, 'error');
         }

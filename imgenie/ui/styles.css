@@ -1502,9 +1502,9 @@ body {
         height: auto;
         max-height: none;
         /* Allow full expansion */
-        border: 1px solid var(--border-light);
-        background: var(--bg-tertiary);
-        /* Contrast background for viewport area */
+        border: none;
+        background: transparent;
+        /* Matches page background */
     }
 
     .generated-image {
@@ -1513,9 +1513,20 @@ body {
         object-fit: contain;
     }
 
+    /* Hide image if source is empty/missing to avoid broken icon */
+    .generated-image[src=""],
+    .generated-image:not([src]) {
+        display: none;
+    }
+
     /* Hide section header in full viewport mode if desired, or keep it minimal */
     .viewport-panel .section-header {
         margin-bottom: 1rem;
+        padding: 1rem;
+        /* Add padding to fix zero top/side padding */
+        background: var(--bg-primary);
+        /* Ensure background if needed */
+        width: 100%;
     }
 }
 

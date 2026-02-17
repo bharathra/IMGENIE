@@ -325,20 +325,22 @@
                     <div class="section-header">
                         <span class="step-number">8</span>
                         <h2>Generated Image</h2>
+                        <div class="header-buttons" style="display: flex; gap: 0.5rem; margin-right: 2rem;">
+                            <button class="btn btn-icon-text" id="saveImageBtn"
+                                style="padding: 0.6rem 1rem; font-size: 1rem;">
+                                💾 Save Image
+                            </button>
+                            <button class="btn btn-icon-text btn-danger" id="deleteImageBtn"
+                                style="padding: 0.6rem 1rem; font-size: 1rem;">
+                                🗑️ Delete
+                            </button>
+                        </div>
                         <span class="chevron">▼</span>
                     </div>
                     <div class="card-content">
                         <div class="result-container">
                             <div class="image-viewport" id="imageViewport">
                                 <img id="generatedImage" class="generated-image" alt="Generated image">
-                            </div>
-                            <div class="result-actions">
-                                <button class="btn btn-icon-text" id="saveImageBtn">
-                                    💾 Save Image
-                                </button>
-                                <button class="btn btn-icon-text btn-danger" id="deleteImageBtn">
-                                    🗑️ Delete
-                                </button>
                             </div>
                             <!-- <div class="result-metadata" id="resultMetadata">
                                 <p><strong>Model:</strong> <span id="metaModel">--</span></p>
