@@ -833,6 +833,26 @@ async function handleGenerate() {
                 formData.append('prompt', document.getElementById('promptInput').value);
                 formData.append('image', refImageFile);
 
+                // Add LoRAs to FormData
+                const loras = [];
+                const addLoRa = (selectId, weightId, type) => {
+                    const el = document.getElementById(selectId);
+                    const wEl = document.getElementById(weightId);
+                    if (el && el.value) {
+                        loras.push({
+                            name: el.value,
+                            weight: wEl ? wEl.value : 1.0,
+                            type: type
+                        });
+                    }
+                };
+
+                addLoRa('char1Select', 'char1Weight', 'character');
+                addLoRa('char2Select', 'char2Weight', 'character');
+                addLoRa('conceptSelect', 'conceptWeight', 'concept');
+
+                formData.append('loras', JSON.stringify(loras));
+
                 response = await fetch(`${API_BASE}/generate`, {
                     method: 'POST',
                     body: formData
@@ -844,9 +864,6 @@ async function handleGenerate() {
                     model: appState.selectedModel,
                     steps: document.getElementById('stepsSlider').value,
                     guidance_scale: document.getElementById('guidanceSlider').value,
-                    strength: document.getElementById('strengthSlider') ? document.getElementById('strengthSlider').value : 0.8,
-                    resolution: document.getElementById('resolutionSelect').value,
-                    seed: document.getElementById('seedInput').value || -1,
                     strength: document.getElementById('strengthSlider') ? document.getElementById('strengthSlider').value : 0.8,
                     resolution: document.getElementById('resolutionSelect').value,
                     seed: document.getElementById('seedInput').value || -1,

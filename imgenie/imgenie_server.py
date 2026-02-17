@@ -539,6 +539,13 @@ def generate():
 
             # Handle LoRAs
             loras = data.get('loras', [])
+            if isinstance(loras, str):
+                import json
+                try:
+                    loras = json.loads(loras)
+                except Exception as e:
+                    print(f"Error parsing LoRAs JSON: {e}")
+                    loras = []
             if server.t2i_model:
                 try:
                     # Always reset loras if none provided? 
