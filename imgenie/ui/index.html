@@ -29,312 +29,325 @@
 
     <!-- Main Container -->
     <main class="container">
-        <div class="content-wrapper">
-            <!-- Section 1: Task Selector -->
-            <section class="card task-selector">
-                <div class="section-header">
-                    <span class="step-number">1</span>
-                    <h2>Select Task</h2>
-                    <span class="chevron">▼</span>
-                </div>
-                <div class="card-content">
-                    <div class="task-options">
-                        <label class="radio-card">
-                            <input type="radio" name="task" value="text-to-image" checked>
-                            <div class="radio-content">
-                                <span class="radio-label">🖼️ Text-to-Image</span>
-                                <p class="radio-description">Generate images from text prompts</p>
+        <div class="split-view-container">
+            <!-- Controls Panel -->
+            <div class="controls-panel">
+                <div class="content-wrapper">
+                    <!-- Section 1: Task Selector -->
+                    <section class="card task-selector">
+                        <div class="section-header">
+                            <span class="step-number">1</span>
+                            <h2>Select Task</h2>
+                            <span class="chevron">▼</span>
+                        </div>
+                        <div class="card-content">
+                            <div class="task-options">
+                                <label class="radio-card">
+                                    <input type="radio" name="task" value="text-to-image" checked>
+                                    <div class="radio-content">
+                                        <span class="radio-label">🖼️ Text-to-Image</span>
+                                        <p class="radio-description">Generate images from text prompts</p>
+                                    </div>
+                                </label>
+                                <label class="radio-card">
+                                    <input type="radio" name="task" value="image-to-text">
+                                    <div class="radio-content">
+                                        <span class="radio-label">📝 Image-to-Text</span>
+                                        <p class="radio-description">Generate descriptions from images</p>
+                                    </div>
+                                </label>
                             </div>
-                        </label>
-                        <label class="radio-card">
-                            <input type="radio" name="task" value="image-to-text">
-                            <div class="radio-content">
-                                <span class="radio-label">📝 Image-to-Text</span>
-                                <p class="radio-description">Generate descriptions from images</p>
+                        </div>
+                    </section>
+
+                    <!-- Section 2: Model Selector -->
+                    <section class="card model-selector">
+                        <div class="section-header">
+                            <span class="step-number">2</span>
+                            <h2>Select Model</h2>
+                            <span class="chevron">▼</span>
+                        </div>
+                        <div class="card-content">
+                            <div class="model-selection">
+                                <select id="modelSelect" class="model-dropdown">
+                                    <option value="">-- Select a model --</option>
+                                    <option value="zimage_turbo">ZImageTurbo</option>
+                                </select>
+                                <div class="model-info">
+                                    <p id="modelDetailsPlaceholder" class="info-text">Select a model to view details</p>
+                                </div>
                             </div>
-                        </label>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Section 2: Model Selector -->
-            <section class="card model-selector">
-                <div class="section-header">
-                    <span class="step-number">2</span>
-                    <h2>Select Model</h2>
-                    <span class="chevron">▼</span>
-                </div>
-                <div class="card-content">
-                    <div class="model-selection">
-                        <select id="modelSelect" class="model-dropdown">
-                            <option value="">-- Select a model --</option>
-                            <option value="zimage_turbo">ZImageTurbo</option>
-                        </select>
-                        <div class="model-info">
-                            <p id="modelDetailsPlaceholder" class="info-text">Select a model to view details</p>
                         </div>
-                    </div>
-                </div>
-            </section>
+                    </section>
 
-            <!-- Section 3: Model Control -->
-            <section class="card model-control">
-                <div class="section-header">
-                    <span class="step-number">3</span>
-                    <h2>Model Control</h2>
-                    <span class="chevron">▼</span>
-                </div>
-                <div class="card-content">
-                    <div class="control-buttons">
-                        <button class="btn btn-primary" id="loadModelBtn">
-                            📥 Load Model
-                        </button>
-                        <button class="btn btn-secondary" id="unloadModelBtn" disabled>
-                            📤 Unload Model
-                        </button>
-                    </div>
-                    <div class="model-status">
-                        <div class="status-item">
-                            <span class="status-label">Status:</span>
-                            <span class="status-value" id="modelStatus">Not Loaded</span>
+                    <!-- Section 3: Model Control -->
+                    <section class="card model-control">
+                        <div class="section-header">
+                            <span class="step-number">3</span>
+                            <h2>Model Control</h2>
+                            <span class="chevron">▼</span>
                         </div>
-                        <div class="memory-bar">
-                            <div class="memory-label">
-                                <span>GPU Memory:</span>
-                                <span id="memoryPercent">0%</span>
+                        <div class="card-content">
+                            <div class="control-buttons">
+                                <button class="btn btn-primary" id="loadModelBtn">
+                                    📥 Load Model
+                                </button>
+                                <button class="btn btn-secondary" id="unloadModelBtn" disabled>
+                                    📤 Unload Model
+                                </button>
                             </div>
-                            <div class="progress-bar">
-                                <div class="progress-fill" id="memoryFill"></div>
+                            <div class="model-status">
+                                <div class="status-item">
+                                    <span class="status-label">Status:</span>
+                                    <span class="status-value" id="modelStatus">Not Loaded</span>
+                                </div>
+                                <div class="memory-bar">
+                                    <div class="memory-label">
+                                        <span>GPU Memory:</span>
+                                        <span id="memoryPercent">0%</span>
+                                    </div>
+                                    <div class="progress-bar">
+                                        <div class="progress-fill" id="memoryFill"></div>
+                                    </div>
+                                    <div class="memory-text" id="memoryText">0 GB / 8 GB</div>
+                                </div>
                             </div>
-                            <div class="memory-text" id="memoryText">0 GB / 8 GB</div>
                         </div>
-                    </div>
-                </div>
-            </section>
+                    </section>
 
-            <!-- Section 4: Parameters -->
-            <section class="card parameters">
-                <div class="section-header">
-                    <span class="step-number">4</span>
-                    <h2>Config</h2>
-                    <span class="chevron">▼</span>
-                </div>
-                <div class="card-content">
-                    <div class="param-group txt2img-only">
-                        <label for="stepsSlider" class="param-label">
-                            <span>Inference Steps</span>
-                            <span class="param-value" id="stepsValue">20</span>
-                        </label>
-                        <input type="range" id="stepsSlider" min="1" max="50" value="20" class="slider">
-                        <div class="param-hint">Higher steps = better quality, slower generation</div>
-                    </div>
-
-                    <div class="param-group txt2img-only">
-                        <label for="guidanceSlider" class="param-label">
-                            <span>Guidance Scale</span>
-                            <span class="param-value" id="guidanceValue">7.5</span>
-                        </label>
-                        <input type="range" id="guidanceSlider" min="0" max="20" step="0.1" value="7.5" class="slider">
-                        <div class="param-hint">Controls adherence to prompt (higher = more adherence, 0 = free form)
+                    <!-- Section 4: Parameters -->
+                    <section class="card parameters">
+                        <div class="section-header">
+                            <span class="step-number">4</span>
+                            <h2>Config</h2>
+                            <span class="chevron">▼</span>
                         </div>
-                    </div>
+                        <div class="card-content">
+                            <div class="param-group txt2img-only">
+                                <label for="stepsSlider" class="param-label">
+                                    <span>Inference Steps</span>
+                                    <span class="param-value" id="stepsValue">20</span>
+                                </label>
+                                <input type="range" id="stepsSlider" min="1" max="50" value="20" class="slider">
+                                <div class="param-hint">Higher steps = better quality, slower generation</div>
+                            </div>
 
-                    <div class="param-group txt2img-only">
-                        <label for="resolutionSelect" class="param-label">
-                            <span>Resolution</span>
-                        </label>
-                        <select id="resolutionSelect" class="param-select">
-                            <option value="512x512">512 × 512</option>
-                            <option value="768x768">768 × 768</option>
-                            <option value="1024x1024">1024 × 1024</option>
-                        </select>
-                    </div>
+                            <div class="param-group txt2img-only">
+                                <label for="guidanceSlider" class="param-label">
+                                    <span>Guidance Scale</span>
+                                    <span class="param-value" id="guidanceValue">7.5</span>
+                                </label>
+                                <input type="range" id="guidanceSlider" min="0" max="20" step="0.1" value="7.5"
+                                    class="slider">
+                                <div class="param-hint">Controls adherence to prompt (higher = more adherence, 0 = free
+                                    form)
+                                </div>
+                            </div>
 
-
-                    <div class="param-group txt2img-only">
-                        <label for="seedInput" class="param-label">
-                            <span>Seed</span>
-                            <button type="button" class="btn-icon" id="randomSeedBtn"
-                                title="Generate random seed">🎲</button>
-                        </label>
-                        <input type="number" id="seedInput" placeholder="Leave empty for random seed"
-                            class="param-input">
-                        <div class="param-hint">Use the same seed to reproduce results</div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Section 5: LoRA Adapters -->
-            <section class="card lora-adapters txt2img-only" id="loraSection">
-                <div class="section-header">
-                    <span class="step-number">5</span>
-                    <h2>LoRA Adapters</h2>
-                    <span class="chevron">▼</span>
-                </div>
-                <div class="card-content">
-                    <div class="lora-group">
-                        <label class="input-label" for="char1Select">Character</label>
-                        <div class="lora-control">
-                            <select id="char1Select" class="lora-select">
-                                <option value="">None</option>
-                            </select>
-                            <input type="number" id="char1Weight" class="lora-weight" value="0.66" step="0.05" min="0"
-                                max="2" title="Weight">
-                        </div>
-                    </div>
-
-                    <div class="lora-group" style="display: none;">
-                        <label class="input-label" for="char2Select">Character 2</label>
-                        <div class="lora-control">
-                            <select id="char2Select" class="lora-select">
-                                <option value="">None</option>
-                            </select>
-                            <input type="number" id="char2Weight" class="lora-weight" value="0.66" step="0.05" min="0"
-                                max="2" title="Weight">
-                        </div>
-                    </div>
-
-                    <div class="lora-group">
-                        <label class="input-label" for="conceptSelect">Concept</label>
-                        <div class="lora-control">
-                            <select id="conceptSelect" class="lora-select">
-                                <option value="">None</option>
-                            </select>
-                            <input type="number" id="conceptWeight" class="lora-weight" value="0.33" step="0.05" min="0"
-                                max="2" title="Weight">
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Section 6: Inputs -->
-            <section class="card inputs-section">
-                <div class="section-header">
-                    <span class="step-number">6</span>
-                    <h2>Prompt(s)</h2>
-                    <span class="chevron">▼</span>
-                </div>
-                <div class="card-content">
-                    <!-- Text-to-Image inputs -->
-                    <div id="text-to-image-inputs" class="task-inputs active">
-                        <div class="input-group">
-                            <!-- Prompt Templates -->
-                            <div class="param-group" style="margin-bottom: 0.8rem;" id="promptTemplateGroup">
-                                <label for="promptTemplateSelect" class="input-label"
-                                    style="font-size: 0.9rem; color: var(--text-tertiary);">Quick Prompts</label>
-                                <select id="promptTemplateSelect" class="param-select" style="width: 100%;">
-                                    <option value="">-- Select a prompt template --</option>
+                            <div class="param-group txt2img-only">
+                                <label for="resolutionSelect" class="param-label">
+                                    <span>Resolution</span>
+                                </label>
+                                <select id="resolutionSelect" class="param-select">
+                                    <option value="512x512">512 × 512</option>
+                                    <option value="768x768">768 × 768</option>
+                                    <option value="1024x1024">1024 × 1024</option>
                                 </select>
                             </div>
 
-                            <label for="promptInput" class="input-label">
-                                <span>📝 Prompt</span>
-                                <span class="char-count"><span id="promptCount">0</span>/1000</span>
-                            </label>
-                            <textarea id="promptInput" class="prompt-textarea"
-                                placeholder="Describe the image you want to generate..." maxlength="1000"></textarea>
-                        </div>
 
-                        <div class="input-group">
-                            <label for="referenceImage" class="input-label">📷 Reference Image (Optional)</label>
-                            <div class="upload-area" id="uploadArea">
-                                <input type="file" id="referenceImage" accept="image/*" style="display: none;">
-                                <div class="upload-placeholder">
-                                    <span class="upload-icon">📤</span>
-                                    <p>Drag and drop an image here, or click to select</p>
-                                </div>
-                                <div class="image-preview" id="imagePreview"></div>
-                                <button id="clearRefImageBtn" class="btn-icon"
-                                    style="display: none; position: absolute; top: 10px; right: 10px; z-index: 10;"
-                                    title="Clear reference image">❌</button>
-                            </div>
-
-                            <div class="param-group txt2img-only" style="margin-top: 15px;">
-                                <label for="strengthSlider" class="param-label">
-                                    <span>Ref Image Strength</span>
-                                    <span class="param-value" id="strengthValue">0.8</span>
+                            <div class="param-group txt2img-only">
+                                <label for="seedInput" class="param-label">
+                                    <span>Seed</span>
+                                    <button type="button" class="btn-icon" id="randomSeedBtn"
+                                        title="Generate random seed">🎲</button>
                                 </label>
-                                <input type="range" id="strengthSlider" min="0.0" max="1.0" step="0.05" value="0.8"
-                                    class="slider">
-                                <div class="param-hint">Influence of reference image (0.0 = exact copy, 1.0 = full
-                                    change)
+                                <input type="number" id="seedInput" placeholder="Leave empty for random seed"
+                                    class="param-input">
+                                <div class="param-hint">Use the same seed to reproduce results</div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Section 5: LoRA Adapters -->
+                    <section class="card lora-adapters txt2img-only" id="loraSection">
+                        <div class="section-header">
+                            <span class="step-number">5</span>
+                            <h2>LoRA Adapters</h2>
+                            <span class="chevron">▼</span>
+                        </div>
+                        <div class="card-content">
+                            <div class="lora-group">
+                                <label class="input-label" for="char1Select">Character</label>
+                                <div class="lora-control">
+                                    <select id="char1Select" class="lora-select">
+                                        <option value="">None</option>
+                                    </select>
+                                    <input type="number" id="char1Weight" class="lora-weight" value="0.66" step="0.05"
+                                        min="0" max="2" title="Weight">
                                 </div>
                             </div>
 
-                        </div>
-                    </div>
-
-                    <!-- Image-to-Text inputs -->
-                    <div id="image-to-text-inputs" class="task-inputs">
-                        <div class="input-group">
-                            <label for="imageForDesc" class="input-label">📷 Upload Image to Describe</label>
-                            <div class="upload-area" id="uploadAreaDesc">
-                                <input type="file" id="imageForDesc" accept="image/*" style="display: none;">
-                                <div class="upload-placeholder">
-                                    <span class="upload-icon">📤</span>
-                                    <p>Drag and drop an image here, or click to select</p>
+                            <div class="lora-group" style="display: none;">
+                                <label class="input-label" for="char2Select">Character 2</label>
+                                <div class="lora-control">
+                                    <select id="char2Select" class="lora-select">
+                                        <option value="">None</option>
+                                    </select>
+                                    <input type="number" id="char2Weight" class="lora-weight" value="0.66" step="0.05"
+                                        min="0" max="2" title="Weight">
                                 </div>
-                                <div class="image-preview" id="imagePreviewDesc"></div>
+                            </div>
+
+                            <div class="lora-group">
+                                <label class="input-label" for="conceptSelect">Concept</label>
+                                <div class="lora-control">
+                                    <select id="conceptSelect" class="lora-select">
+                                        <option value="">None</option>
+                                    </select>
+                                    <input type="number" id="conceptWeight" class="lora-weight" value="0.33" step="0.05"
+                                        min="0" max="2" title="Weight">
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Section 6: Inputs -->
+                    <section class="card inputs-section">
+                        <div class="section-header">
+                            <span class="step-number">6</span>
+                            <h2>Prompt(s)</h2>
+                            <span class="chevron">▼</span>
+                        </div>
+                        <div class="card-content">
+                            <!-- Text-to-Image inputs -->
+                            <div id="text-to-image-inputs" class="task-inputs active">
+                                <div class="input-group">
+                                    <!-- Prompt Templates -->
+                                    <div class="param-group" style="margin-bottom: 0.8rem;" id="promptTemplateGroup">
+                                        <label for="promptTemplateSelect" class="input-label"
+                                            style="font-size: 0.9rem; color: var(--text-tertiary);">Quick
+                                            Prompts</label>
+                                        <select id="promptTemplateSelect" class="param-select" style="width: 100%;">
+                                            <option value="">-- Select a prompt template --</option>
+                                        </select>
+                                    </div>
+
+                                    <label for="promptInput" class="input-label">
+                                        <span>📝 Prompt</span>
+                                        <span class="char-count"><span id="promptCount">0</span>/1000</span>
+                                    </label>
+                                    <textarea id="promptInput" class="prompt-textarea"
+                                        placeholder="Describe the image you want to generate..."
+                                        maxlength="1000"></textarea>
+                                </div>
+
+                                <div class="input-group">
+                                    <label for="referenceImage" class="input-label">📷 Reference Image
+                                        (Optional)</label>
+                                    <div class="upload-area" id="uploadArea">
+                                        <input type="file" id="referenceImage" accept="image/*" style="display: none;">
+                                        <div class="upload-placeholder">
+                                            <span class="upload-icon">📤</span>
+                                            <p>Drag and drop an image here, or click to select</p>
+                                        </div>
+                                        <div class="image-preview" id="imagePreview"></div>
+                                        <button id="clearRefImageBtn" class="btn-icon"
+                                            style="display: none; position: absolute; top: 10px; right: 10px; z-index: 10;"
+                                            title="Clear reference image">❌</button>
+                                    </div>
+
+                                    <div class="param-group txt2img-only" style="margin-top: 15px;">
+                                        <label for="strengthSlider" class="param-label">
+                                            <span>Ref Image Strength</span>
+                                            <span class="param-value" id="strengthValue">0.8</span>
+                                        </label>
+                                        <input type="range" id="strengthSlider" min="0.0" max="1.0" step="0.05"
+                                            value="0.8" class="slider">
+                                        <div class="param-hint">Influence of reference image (0.0 = exact copy, 1.0 =
+                                            full
+                                            change)
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                            <!-- Image-to-Text inputs -->
+                            <div id="image-to-text-inputs" class="task-inputs">
+                                <div class="input-group">
+                                    <label for="imageForDesc" class="input-label">📷 Upload Image to Describe</label>
+                                    <div class="upload-area" id="uploadAreaDesc">
+                                        <input type="file" id="imageForDesc" accept="image/*" style="display: none;">
+                                        <div class="upload-placeholder">
+                                            <span class="upload-icon">📤</span>
+                                            <p>Drag and drop an image here, or click to select</p>
+                                        </div>
+                                        <div class="image-preview" id="imagePreviewDesc"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- Section 7: Generation -->
+                    <section class="card generation">
+                        <div class="section-header">
+                            <span class="step-number">7</span>
+                            <h2>Generate</h2>
+                        </div>
+                        <div class="card-content">
+                            <button class="btn btn-generate" id="generateBtn">
+                                ✨ Generate Image
+                            </button>
+                            <button class="btn btn-cancel" id="cancelBtn" style="display: none;">
+                                ⏹ Cancel Generation
+                            </button>
+                            <div class="generation-progress" id="generationProgress" style="display: none;">
+                                <div class="progress-info">
+                                    <p id="progressText">Processing...</p>
+                                    <span id="timeRemaining">Time remaining: --</span>
+                                </div>
+                                <div class="progress-bar large-progress">
+                                    <div class="progress-fill" id="generationProgressFill"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+
+            <!-- Viewport Panel -->
+            <div class="viewport-panel">
+                <!-- Section 8: Results -->
+                <section class="card results" id="resultsSection" style="display: none;">
+                    <div class="section-header">
+                        <span class="step-number">8</span>
+                        <h2>Generated Image</h2>
+                        <span class="chevron">▼</span>
+                    </div>
+                    <div class="card-content">
+                        <div class="result-container">
+                            <div class="image-viewport" id="imageViewport">
+                                <img id="generatedImage" class="generated-image" alt="Generated image">
+                            </div>
+                            <div class="result-actions">
+                                <button class="btn btn-icon-text" id="saveImageBtn">
+                                    💾 Save Image
+                                </button>
+                                <button class="btn btn-icon-text btn-danger" id="deleteImageBtn">
+                                    🗑️ Delete
+                                </button>
+                            </div>
+                            <div class="result-metadata" id="resultMetadata">
+                                <p><strong>Model:</strong> <span id="metaModel">--</span></p>
+                                <p><strong>Time:</strong> <span id="metaTime">--</span></p>
+                                <p><strong>Resolution:</strong> <span id="metaResolution">--</span></p>
                             </div>
                         </div>
                     </div>
-                </div>
-            </section>
-
-            <!-- Section 7: Generation -->
-            <section class="card generation">
-                <div class="section-header">
-                    <span class="step-number">7</span>
-                    <h2>Generate</h2>
-                </div>
-                <div class="card-content">
-                    <button class="btn btn-generate" id="generateBtn">
-                        ✨ Generate Image
-                    </button>
-                    <button class="btn btn-cancel" id="cancelBtn" style="display: none;">
-                        ⏹ Cancel Generation
-                    </button>
-                    <div class="generation-progress" id="generationProgress" style="display: none;">
-                        <div class="progress-info">
-                            <p id="progressText">Processing...</p>
-                            <span id="timeRemaining">Time remaining: --</span>
-                        </div>
-                        <div class="progress-bar large-progress">
-                            <div class="progress-fill" id="generationProgressFill"></div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Section 8: Results -->
-            <section class="card results" id="resultsSection" style="display: none;">
-                <div class="section-header">
-                    <span class="step-number">8</span>
-                    <h2>Generated Image</h2>
-                    <span class="chevron">▼</span>
-                </div>
-                <div class="card-content">
-                    <div class="result-container">
-                        <div class="image-viewport" id="imageViewport">
-                            <img id="generatedImage" class="generated-image" alt="Generated image">
-                        </div>
-                        <div class="result-actions">
-                            <button class="btn btn-icon-text" id="saveImageBtn">
-                                💾 Save Image
-                            </button>
-                            <button class="btn btn-icon-text btn-danger" id="deleteImageBtn">
-                                🗑️ Delete
-                            </button>
-                        </div>
-                        <div class="result-metadata" id="resultMetadata">
-                            <p><strong>Model:</strong> <span id="metaModel">--</span></p>
-                            <p><strong>Time:</strong> <span id="metaTime">--</span></p>
-                            <p><strong>Resolution:</strong> <span id="metaResolution">--</span></p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
+                </section>
+            </div>
         </div>
     </main>
 

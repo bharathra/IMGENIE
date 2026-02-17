@@ -433,9 +433,13 @@ function setupCollapsibles() {
         header.addEventListener('click', () => {
             const isActive = card.classList.contains('active');
 
-            // Close all excpet generation
-            cards.forEach(c => {
-                if (!c.classList.contains('generation')) {
+            // Determine scope for collapsing siblings
+            const parentPanel = card.closest('.controls-panel, .viewport-panel');
+            const scope = parentPanel ? parentPanel : document;
+
+            // Close all except generation in the same scope
+            scope.querySelectorAll('.card').forEach(c => {
+                if (!c.classList.contains('generation') && c !== card) {
                     c.classList.remove('active');
                 }
             });
@@ -450,15 +454,23 @@ function setupCollapsibles() {
 function expandSection(sectionClass) {
     const section = document.querySelector(`.card.${sectionClass}`);
     if (section) {
-        // Collapse all first, except generation
-        document.querySelectorAll('.card').forEach(c => {
-            if (!c.classList.contains('generation')) {
+        // Determine scope
+        const parentPanel = section.closest('.controls-panel, .viewport-panel');
+        const scope = parentPanel ? parentPanel : document;
+
+        // Collapse all first in same scope, except generation
+        scope.querySelectorAll('.card').forEach(c => {
+            if (!c.classList.contains('generation') && c !== section) {
                 c.classList.remove('active');
             }
         });
 
         section.classList.add('active');
-        section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        // Scroll only if on mobile or if not in split view context
+        if (window.innerWidth < 1024) {
+            section.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
     }
 }
 
