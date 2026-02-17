@@ -1390,13 +1390,21 @@ body {
 /* Landscape Mode - maximize viewport on right */
 @media (orientation: landscape) {
 
+    html,
+    body {
+        overflow: hidden;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+
     /* Override container to allow full width usage if desired, or keep centered but split */
     .container {
         max-width: 100% !important;
         padding: 0 !important;
         margin: 0 !important;
-        height: calc(100vh - 80px);
-        /* Subtract header height approx */
+        height: calc(100vh - 85px);
+        /* Adjusted for header height */
         display: flex;
         flex-direction: column;
     }

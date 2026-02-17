@@ -983,9 +983,9 @@ function displayResults(imageUrl, params, imageId) {
     appState.lastImageId = imageId;
     appState.lastImageParams = params;
 
-    document.getElementById('metaModel').textContent = appState.selectedModel || 'Unknown';
-    document.getElementById('metaTime').textContent = new Date().toLocaleTimeString();
-    document.getElementById('metaResolution').textContent = params.resolution || 'Unknown';
+    // document.getElementById('metaModel').textContent = appState.selectedModel || 'Unknown';
+    // document.getElementById('metaTime').textContent = new Date().toLocaleTimeString();
+    // document.getElementById('metaResolution').textContent = params.resolution || 'Unknown';
 
     resultsSection.style.display = 'block';
     resultsSection.scrollIntoView({ behavior: 'smooth' });
@@ -1015,9 +1015,9 @@ function displayDescription(description, metadata) {
     `;
     descContainer.style.display = 'flex';
 
-    document.getElementById('metaModel').textContent = metadata.model;
-    document.getElementById('metaTime').textContent = new Date().toLocaleTimeString();
-    document.getElementById('metaResolution').textContent = 'N/A';
+    // document.getElementById('metaModel').textContent = metadata.model;
+    // document.getElementById('metaTime').textContent = new Date().toLocaleTimeString();
+    // document.getElementById('metaResolution').textContent = 'N/A';
 
     resultsSection.style.display = 'block';
     resultsSection.scrollIntoView({ behavior: 'smooth' });
