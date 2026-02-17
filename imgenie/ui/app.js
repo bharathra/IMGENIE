@@ -42,6 +42,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Initial fetch of LoRAs
     fetchLoRAs();
+    // Initial fetch of prompt templates
+    fetchPromptTemplates();
 });
 
 // ===========================
@@ -357,6 +359,23 @@ function attachEventListeners() {
         if (el) el.addEventListener('change', saveConfigToLocalStorage);
     });
 
+    // Prompt template selection
+    const promptTemplateSelect = document.getElementById('promptTemplateSelect');
+    if (promptTemplateSelect) {
+        promptTemplateSelect.addEventListener('change', (e) => {
+            const selectedPrompt = e.target.value;
+            if (selectedPrompt) {
+                const promptInput = document.getElementById('promptInput');
+                promptInput.value = selectedPrompt; // Clears and sets new value
+                // Trigger input event to update char count and save
+                promptInput.dispatchEvent(new Event('input'));
+
+                // Reset select so user can select the same one again if needed
+                e.target.value = "";
+            }
+        });
+    }
+
     // File uploads
     setupFileUpload('uploadArea', 'referenceImage', 'imagePreview');
     setupFileUpload('uploadAreaDesc', 'imageForDesc', 'imagePreviewDesc');
@@ -534,6 +553,7 @@ async function handleLoadModel() {
 
             checkModelStatus(); // Update memory usage immediately
             fetchLoRAs(); // Update LoRAs for the new model
+            fetchPromptTemplates(); // Update prompt templates for the new model
 
             // Auto-advance to Parameters
             expandSection('parameters');
@@ -1213,3 +1233,39 @@ function updateLoRaDropdowns(characters, concepts) {
     }
 }
 
+
+// ===========================
+// PROMPT TEMPLATES
+// ===========================
+
+async function fetchPromptTemplates() {
+    try {
+        const response = await fetch(`${API_BASE}/prompts`);
+        if (response.ok) {
+            const data = await response.json();
+            updatePromptTemplateDropdown(data);
+        }
+    } catch (e) {
+        console.error("Error fetching prompt templates:", e);
+    }
+}
+
+function updatePromptTemplateDropdown(prompts) {
+    const select = document.getElementById('promptTemplateSelect');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">-- Select a prompt template --</option>';
+
+    // prompts is expected to be a dict: { "keyword": "prompt text", ... }
+    if (prompts && typeof prompts === 'object') {
+        Object.entries(prompts).forEach(([keyword, text]) => {
+            const opt = document.createElement('option');
+            opt.value = text;
+            opt.textContent = keyword; // specific format ? keyword: prompt ... user said "keyword: prompt" format in yaml
+            select.appendChild(opt);
+        });
+
+        // If there are prompts, show the group, otherwise maybe hide it?
+        // document.getElementById('promptTemplateGroup').style.display = Object.keys(prompts).length > 0 ? 'block' : 'none';
+    }
+}

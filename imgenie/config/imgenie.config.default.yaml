@@ -9,6 +9,7 @@ txt2img:
     prompts_yaml: "/root/.imgenie/prompts/prompts.yaml"
     character_lora_path: "/root/.imgenie/loras/characters"
     concept_lora_path: "/root/.imgenie/loras/concepts"
+    prompts_db_path: "/root/.imgenie/prompts/prompts.db.yaml"
     resolution_options: ["720x720", "1024x720", "1024x1024"]
 
 img2txt:

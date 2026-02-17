@@ -218,6 +218,15 @@
                     <!-- Text-to-Image inputs -->
                     <div id="text-to-image-inputs" class="task-inputs active">
                         <div class="input-group">
+                            <!-- Prompt Templates -->
+                            <div class="param-group" style="margin-bottom: 0.8rem;" id="promptTemplateGroup">
+                                <label for="promptTemplateSelect" class="input-label"
+                                    style="font-size: 0.9rem; color: var(--text-tertiary);">Quick Prompts</label>
+                                <select id="promptTemplateSelect" class="param-select" style="width: 100%;">
+                                    <option value="">-- Select a prompt template --</option>
+                                </select>
+                            </div>
+
                             <label for="promptInput" class="input-label">
                                 <span>📝 Prompt</span>
                                 <span class="char-count"><span id="promptCount">0</span>/1000</span>

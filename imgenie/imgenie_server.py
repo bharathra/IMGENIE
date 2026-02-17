@@ -224,6 +224,50 @@ def get_loras():
 
     return jsonify(loras)
 
+    return jsonify(loras)
+
+
+@app.route('/api/prompts', methods=['GET'])
+def get_prompts():
+    """Get prompt templates from configured YAML file"""
+    if not server:
+        return jsonify({})
+
+    # Use current loaded model's config, or fallback to first available
+    model_id = server.current_t2i_id
+    if not model_id and server.t2i_cfg:
+        model_id = list(server.t2i_cfg.keys())[0]
+
+    if not model_id or model_id not in server.t2i_cfg:
+        return jsonify({})
+
+    cfg = server.t2i_cfg[model_id]
+    prompts_path_str = cfg.get('prompts_db_path')
+
+    if not prompts_path_str:
+        return jsonify({})
+
+    try:
+        p = Path(prompts_path_str)
+        # If relative, prepend root if exists
+        if not p.is_absolute() and server.config.get('root_dir'):
+            p = Path(server.config.get('root_dir')) / p
+
+        if p.exists() and p.is_file():
+            with open(p, 'r') as f:
+                content = yaml.safe_load(f)
+                if isinstance(content, dict):
+                    return jsonify(content)
+                else:
+                    print(f"Warning: Prompts file {p} is not a valid YAML dictionary")
+                    return jsonify({})
+        else:
+            # print(f"Prompts file not found: {p}")
+            return jsonify({})
+
+    except Exception as e:
+        print(f"Error reading prompts file: {e}")
+        return jsonify({})
 
 @app.route('/api/model/load', methods=['POST'])
 def load_model():
