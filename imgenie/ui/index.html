@@ -354,61 +354,6 @@
         </div>
     </main>
 
-    <!-- Settings Modal -->
-    <div class="modal" id="settingsModal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>Settings</h2>
-                <button class="btn-close" id="closeSettingsBtn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="settings-group">
-                    <label for="cacheDir" class="settings-label">Model Cache Directory</label>
-                    <input type="text" id="cacheDir" class="settings-input" placeholder="/path/to/models">
-                </div>
-
-                <div class="settings-group">
-                    <label for="defaultRes" class="settings-label">Default Resolution</label>
-                    <select id="defaultRes" class="settings-input">
-                        <option value="512">512 × 512</option>
-                        <option value="768">768 × 768</option>
-                        <option value="1024">1024 × 1024</option>
-                    </select>
-                </div>
-
-                <div class="settings-group">
-                    <label class="settings-checkbox">
-                        <input type="checkbox" id="autoLoadModel">
-                        <span>Auto-load last used model on startup</span>
-                    </label>
-                </div>
-
-                <div class="settings-group">
-                    <label for="apiEndpoint" class="settings-label">API Endpoint</label>
-                    <input type="text" id="apiEndpoint" class="settings-input" placeholder="http://localhost:8000">
-                </div>
-
-                <div class="settings-group">
-                    <label for="maxGpuMemory" class="settings-label">Max GPU Memory (GB)</label>
-                    <input type="number" id="maxGpuMemory" class="settings-input" min="1" max="80" value="8">
-                </div>
-
-                <div class="settings-group">
-                    <label class="settings-label">Cached Models</label>
-                    <div class="cached-models-list" id="cachedModelsList">
-                        <p class="info-text">No cached models</p>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" id="resetSettingsBtn">Reset to Defaults</button>
-                <div>
-                    <button class="btn btn-secondary" id="cancelSettingsBtn">Cancel</button>
-                    <button class="btn btn-primary" id="saveSettingsBtn">💾 Save Settings</button>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Toast Notifications -->
     <div class="toast-container" id="toastContainer"></div>

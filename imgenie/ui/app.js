@@ -393,10 +393,6 @@ function attachEventListeners() {
     // document.getElementById('closeSettingsBtn').addEventListener('click', closeSettings);
     // document.getElementById('cancelSettingsBtn').addEventListener('click', closeSettings);
 
-    // Modal close on background click
-    document.getElementById('settingsModal').addEventListener('click', (e) => {
-        if (e.target.id === 'settingsModal') closeSettings();
-    });
 
     // Initial Load of config
     loadConfigFromLocalStorage();
@@ -1075,17 +1071,7 @@ async function handleSaveImage() {
     }
 }
 
-// ===========================
-// SETTINGS MANAGEMENT
-// ===========================
 
-function openSettings() {
-    document.getElementById('settingsModal').classList.add('active');
-}
-
-function closeSettings() {
-    document.getElementById('settingsModal').classList.remove('active');
-}
 
 // ===========================
 // UI STATE MANAGEMENT
