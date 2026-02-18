@@ -324,8 +324,10 @@
                 <section class="card results" id="resultsSection" style="display: none;">
                     <div class="section-header">
                         <span class="step-number">8</span>
-                        <h2>Generated Image</h2>
-                        <div class="header-buttons" style="display: flex; gap: 0.5rem; margin-right: 2rem;">
+                        <h2 id="resultsHeaderTitle">Generated Image</h2>
+                        <div class="header-buttons" id="resultHeaderButtons"
+                            style="display: flex; gap: 0.5rem; margin-right: 2rem;">
+                            <!-- Image Buttons -->
                             <button class="btn btn-icon-text" id="saveImageBtn"
                                 style="padding: 0.6rem 1rem; font-size: 1rem;">
                                 💾 Save Image
@@ -334,13 +336,31 @@
                                 style="padding: 0.6rem 1rem; font-size: 1rem;">
                                 🗑️ Delete
                             </button>
+                            <!-- Description Buttons (Hidden by default) -->
+                            <button class="btn btn-icon-text" id="copyDescBtn"
+                                style="display: none; padding: 0.6rem 1rem; font-size: 1rem;">
+                                📋 Copy
+                            </button>
+                            <button class="btn btn-icon-text" id="saveDescBtn"
+                                style="display: none; padding: 0.6rem 1rem; font-size: 1rem;">
+                                💾 Save Text
+                            </button>
+                            <button class="btn btn-icon-text btn-danger" id="clearDescBtn"
+                                style="display: none; padding: 0.6rem 1rem; font-size: 1rem;">
+                                🗑️ Clear
+                            </button>
                         </div>
                         <span class="chevron">▼</span>
                     </div>
-                    <div class="card-content">
-                        <div class="result-container">
+                    <div class="card-content" style="height: 100%; display: flex; flex-direction: column;">
+                        <div class="result-container"
+                            style="flex-grow: 1; display: flex; flex-direction: column; height: 100%;">
                             <div class="image-viewport" id="imageViewport">
                                 <img id="generatedImage" class="generated-image" alt="Generated image">
+                            </div>
+                            <div class="description-container" id="descriptionViewport" style="display: none;">
+                                <textarea id="descriptionText" class="description-textarea" readonly
+                                    placeholder="Generated description will appear here..."></textarea>
                             </div>
                             <!-- <div class="result-metadata" id="resultMetadata">
                                 <p><strong>Model:</strong> <span id="metaModel">--</span></p>

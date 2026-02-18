@@ -35,6 +35,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await checkModelStatus();
 
     updateTaskInputs(); // Initialize task-specific UI
+    updateResultsPanel();
     updateUIState();
 
     // Start polling for status/memory updates
@@ -387,6 +388,36 @@ function attachEventListeners() {
     document.getElementById('saveImageBtn')?.addEventListener('click', handleSaveImage);
     document.getElementById('deleteImageBtn')?.addEventListener('click', handleDeleteImage);
 
+    // Description actions
+    document.getElementById('copyDescBtn')?.addEventListener('click', () => {
+        const text = document.getElementById('descriptionText').value;
+        navigator.clipboard.writeText(text).then(() => {
+            showToast('Description copied to clipboard', 'success');
+        }).catch(err => {
+            console.error('Failed to copy: ', err);
+            showToast('Failed to copy text', 'error');
+        });
+    });
+
+    document.getElementById('saveDescBtn')?.addEventListener('click', () => {
+        const text = document.getElementById('descriptionText').value;
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `description_${Date.now()}.txt`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast('Description saved to file', 'success');
+    });
+
+    document.getElementById('clearDescBtn')?.addEventListener('click', () => {
+        document.getElementById('descriptionText').value = '';
+        showToast('Description cleared', 'info');
+    });
+
 
     // Settings (Removed)
     // document.getElementById('settingsBtn').addEventListener('click', openSettings);
@@ -479,6 +510,7 @@ function expandSection(sectionClass) {
 async function handleTaskChange(e) {
     appState.currentTask = e.target.value;
     updateTaskInputs();
+    updateResultsPanel();
     updateGenerationUI(); // Update button text immediately
     await populateModels(); // Reload models for new task
     await checkModelStatus(); // Check if model for new task is loaded
@@ -502,10 +534,39 @@ function updateTaskInputs() {
             param.style.display = 'flex';
         });
     } else {
-        txt2imgParams.forEach(param => {
-            param.style.display = 'none';
-        });
     }
+}
+
+function updateResultsPanel() {
+    const isImageTask = appState.currentTask === 'text-to-image';
+
+    // Update Header
+    const titleEl = document.getElementById('resultsHeaderTitle');
+    if (titleEl) titleEl.textContent = isImageTask ? 'Generated Image' : 'Generated Description';
+
+    // Update Buttons
+    // Check if elements exist first
+    const saveImg = document.getElementById('saveImageBtn');
+    if (saveImg) saveImg.style.display = isImageTask ? 'inline-flex' : 'none';
+
+    const delImg = document.getElementById('deleteImageBtn');
+    if (delImg) delImg.style.display = isImageTask ? 'inline-flex' : 'none';
+
+    const copyDesc = document.getElementById('copyDescBtn');
+    if (copyDesc) copyDesc.style.display = isImageTask ? 'none' : 'inline-flex';
+
+    const saveDesc = document.getElementById('saveDescBtn');
+    if (saveDesc) saveDesc.style.display = isImageTask ? 'none' : 'inline-flex';
+
+    const clearDesc = document.getElementById('clearDescBtn');
+    if (clearDesc) clearDesc.style.display = isImageTask ? 'none' : 'inline-flex';
+
+    // Update Viewports
+    const imgView = document.getElementById('imageViewport');
+    if (imgView) imgView.style.display = isImageTask ? 'block' : 'none';
+
+    const descView = document.getElementById('descriptionViewport');
+    if (descView) descView.style.display = isImageTask ? 'none' : 'flex';
 }
 
 // ===========================
@@ -978,54 +1039,58 @@ function updateGenerationUI() {
 
 function displayResults(imageUrl, params, imageId) {
     const resultsSection = document.getElementById('resultsSection');
+    const imageViewport = document.getElementById('imageViewport');
+    const descriptionViewport = document.getElementById('descriptionViewport');
     const imageElement = document.getElementById('generatedImage');
-    const descContainer = document.getElementById('descriptionContainer');
 
-    if (descContainer) descContainer.style.display = 'none';
+    // Update Header
+    document.getElementById('resultsHeaderTitle').textContent = 'Generated Image';
+
+    // Update Buttons
+    document.getElementById('saveImageBtn').style.display = 'inline-flex';
+    document.getElementById('deleteImageBtn').style.display = 'inline-flex';
+    document.getElementById('copyDescBtn').style.display = 'none';
+    document.getElementById('saveDescBtn').style.display = 'none';
+
+    // Update Viewports
+    descriptionViewport.style.display = 'none';
+    imageViewport.style.display = 'block';
     imageElement.style.display = 'block';
 
     imageElement.src = imageUrl;
     appState.lastImageId = imageId;
     appState.lastImageParams = params;
 
-    // document.getElementById('metaModel').textContent = appState.selectedModel || 'Unknown';
-    // document.getElementById('metaTime').textContent = new Date().toLocaleTimeString();
-    // document.getElementById('metaResolution').textContent = params.resolution || 'Unknown';
-
     resultsSection.style.display = 'block';
     resultsSection.scrollIntoView({ behavior: 'smooth' });
-    // Auto-expand Results panel
     expandSection('results');
 }
 
 function displayDescription(description, metadata) {
     const resultsSection = document.getElementById('resultsSection');
-    const imageElement = document.getElementById('generatedImage');
+    const imageViewport = document.getElementById('imageViewport');
+    const descriptionViewport = document.getElementById('descriptionViewport');
+    const descriptionText = document.getElementById('descriptionText');
 
-    imageElement.style.display = 'none';
+    // Update Header
+    document.getElementById('resultsHeaderTitle').textContent = 'Generated Description';
 
-    let descContainer = document.getElementById('descriptionContainer');
-    if (!descContainer) {
-        descContainer = document.createElement('div');
-        descContainer.id = 'descriptionContainer';
-        descContainer.className = 'description-container';
-        imageElement.parentNode.insertBefore(descContainer, imageElement);
-    }
+    // Update Buttons
+    document.getElementById('saveImageBtn').style.display = 'none';
+    document.getElementById('deleteImageBtn').style.display = 'none';
+    document.getElementById('copyDescBtn').style.display = 'inline-flex';
+    document.getElementById('saveDescBtn').style.display = 'inline-flex';
+    document.getElementById('clearDescBtn').style.display = 'inline-flex';
 
-    descContainer.innerHTML = `
-        <div class="description-text">
-            <h3>Image Description</h3>
-            <p>${description}</p>
-        </div>
-    `;
-    descContainer.style.display = 'flex';
+    // Update Viewports
+    imageViewport.style.display = 'none';
+    descriptionViewport.style.display = 'flex';
 
-    // document.getElementById('metaModel').textContent = metadata.model;
-    // document.getElementById('metaTime').textContent = new Date().toLocaleTimeString();
-    // document.getElementById('metaResolution').textContent = 'N/A';
+    descriptionText.value = description;
 
     resultsSection.style.display = 'block';
     resultsSection.scrollIntoView({ behavior: 'smooth' });
+    expandSection('results');
 }
 
 async function handleSaveImage() {
