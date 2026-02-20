@@ -146,6 +146,10 @@ class ImageGenerator:
             if self.pipeline is None:
                 raise ValueError("Model pipeline is not loaded.")
 
+            generator = None
+            if seed is not None:
+                generator = torch.Generator(device=self.pipeline.device).manual_seed(seed)
+
             # Load reference image if provided
             if ref_image_path and path.exists(ref_image_path):
                 reference_img = self._load_reference_image(ref_image_path)
@@ -162,6 +166,7 @@ class ImageGenerator:
                         strength=strength,
                         height=height,
                         width=width,
+                        generator=generator,
                         callback_on_step_end=callback
                     )
             else:
@@ -178,6 +183,7 @@ class ImageGenerator:
                         num_images_per_prompt=1,
                         height=height,
                         width=width,
+                        generator=generator,
                         callback_on_step_end=callback
                     )
 
@@ -193,6 +199,7 @@ class ImageGenerator:
             with open(yaml_path, 'r') as f:
                 config = yf.safe_load(f)
 
+            seed = config.get('seed', None)
             height = config.get('height', 720)
             width = config.get('width', 720)
 
@@ -244,6 +251,7 @@ class ImageGenerator:
                 num_inference_steps=num_inference_steps,
                 guidance_scale=guidance_scale,
                 strength=ref_image_strength,
+                seed=seed,
                 height=height,
                 width=width)
 
