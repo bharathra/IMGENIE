@@ -12,12 +12,12 @@ logger = logging.getLogger(__name__)
 
 class ModelDownloader:
 
-    def __init__(self, hugging_face_cache_folder: str = "/root/.cache/huggingface/hub"):
-        self.hugging_face_cache_folder = hugging_face_cache_folder
+    def __init__(self, cache_folder: str = "/root/.imgenie/models"):
+        self.cache_folder = cache_folder
 
     def download_model(self, model_id: str) -> Path:
-        model_folder = Path(self.hugging_face_cache_folder,
-                            f"model--{model_id.replace("/", "--")}")
+        model_folder = Path(self.cache_folder,
+                            f"model--{model_id.replace("/", ".")}")
         Path(model_folder).mkdir(parents=True, exist_ok=True)
         logger.info(f"Downloading {model_id}...")
         logger.info(f"Destination directory: {model_folder}")
@@ -32,4 +32,4 @@ class ModelDownloader:
 
 if __name__ == "__main__":
     server = ModelDownloader()
-    server.download_model("nphSi/Z-Image-Lora")
+    server.download_model("stabilityai/stable-diffusion-x4-upscaler")
