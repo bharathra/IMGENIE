@@ -330,11 +330,15 @@ def load_model():
                 if not os.path.isabs(lora_path) and server.config.get('root_dir'):
                      lora_path = os.path.join(server.config.get('root_dir'), lora_path)
                 
+                # Get base model path if specified (for UNet-only checkpoints)
+                base_model_path = model_config.get('base_model_path', None)
+                
                 server.t2i_model = ImageGenerator(
                     model_path=model_path,
                     input_dir=str(server.input_folder),
                     output_dir=str(server.output_folder),
-                    lora_path=lora_path
+                    lora_path=lora_path,
+                    base_model_path=base_model_path
                 )
                 if server.t2i_model.load_model():
                     server.current_t2i_id = model_id

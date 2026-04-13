@@ -9,7 +9,14 @@ import yaml as yf   # to avoid conflict with PyYAML
 
 import torch
 from PIL import Image
-from diffusers import ZImageImg2ImgPipeline, ZImagePipeline
+from diffusers import (
+    ZImageImg2ImgPipeline,
+    ZImagePipeline,
+    StableDiffusionPipeline,
+    StableDiffusionImg2ImgPipeline,
+    UNet2DConditionModel
+)
+from safetensors.torch import load_file
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -27,7 +34,8 @@ class ImageGenerator:
                  model_path=DEFAULT_MODEL_PATH,
                  input_dir: str = "/root/.imgenie/input",
                  output_dir: str = "/root/.imgenie/output", 
-                 lora_path: str = "/root/.imgenie/loras"):
+                 lora_path: str = "/root/.imgenie/loras",
+                 base_model_path: Optional[str] = None):
 
         self.input_dir = Path(input_dir)
         self.input_dir.mkdir(parents=True, exist_ok=True)
@@ -35,17 +43,125 @@ class ImageGenerator:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.lora_path = Path(lora_path)
         self.model_path = model_path
+        self.base_model_path = base_model_path  # Base model for UNet-only checkpoints
+        self.is_single_file_model = False  # Track if model is loaded from .safetensors
+        self.is_unet_only = False  # Track if .safetensors contains only UNet weights
 
-        self.pipeline: Optional[Union[ZImageImg2ImgPipeline, ZImagePipeline]] = None
+        self.pipeline: Optional[Union[ZImageImg2ImgPipeline, ZImagePipeline, StableDiffusionPipeline, StableDiffusionImg2ImgPipeline]] = None
 
     def load_model(self) -> bool:
         try:
             logger.info(f"Loading base model: {self.model_path}")
-            self.pipeline = ZImageImg2ImgPipeline.from_pretrained(
-                self.model_path,
-                torch_dtype=torch.bfloat16,
-                use_safetensors=True,
-                local_files_only=True).to("cuda:0")
+            
+            # Check if model is a single .safetensors file
+            if self.model_path.endswith('.safetensors'):
+                logger.info("Detected single .safetensors file. Analyzing structure...")
+                
+                try:
+                    state_dict = load_file(self.model_path)
+                    keys_list = list(state_dict.keys())
+                    
+                    # Detect model type based on key structure
+                    has_context_refiner = any('context_refiner' in k for k in keys_list)
+                    has_noise_refiner = any('noise_refiner' in k for k in keys_list)
+                    has_model_diffusion = any('model.diffusion_model' in k for k in keys_list)
+                    has_std_unet = any(k.startswith(('unet.', 'down_blocks.', 'up_blocks.', 'conv_in.')) for k in keys_list)
+                    
+                    if (has_context_refiner or has_noise_refiner or has_model_diffusion) and not has_std_unet:
+                        # This is a ZImage model checkpoint - need to load it with a base ZImage model
+                        logger.info("Detected ZImage model checkpoint. Loading with base ZImage model...")
+                        
+                        if not self.base_model_path:
+                            logger.error(
+                                f"❌ ZImage checkpoint detected but no base_model_path specified. "
+                                f"For ZImage models (.safetensors with custom transformer), you must provide a base ZImage model path. "
+                                f"\n\nExample configuration:\n"
+                                f"  model_path: '/path/to/custom_model.safetensors'\n"
+                                f"  base_model_path: '/root/.imgenie/models/TongyiMAI.ZImageTurbo/'\n"
+                                f"\nModel path: {self.model_path}"
+                            )
+                            return False
+                        
+                        logger.info(f"Loading base ZImage model from: {self.base_model_path}")
+                        # Load the base ZImage model
+                        self.pipeline = ZImageImg2ImgPipeline.from_pretrained(
+                            self.base_model_path,
+                            torch_dtype=torch.bfloat16,
+                            use_safetensors=True,
+                            local_files_only=True
+                        ).to("cuda:0")
+                        
+                        # Replace the transformer (diffusion model) with custom checkpoint
+                        logger.info("Loading custom transformer model from safetensors...")
+                        # For ZImage models, the state dict keys are prefixed with 'model.diffusion_model.'
+                        # We need to strip this prefix to load into the pipeline's transformer
+                        mapped_state_dict = {}
+                        for key, value in state_dict.items():
+                            if key.startswith('model.diffusion_model.'):
+                                new_key = key.replace('model.diffusion_model.', '')
+                                mapped_state_dict[new_key] = value
+                            else:
+                                # Keep keys as-is if they don't have the prefix
+                                mapped_state_dict[key] = value
+                        
+                        self.pipeline.transformer.load_state_dict(mapped_state_dict, strict=False)
+                        self.is_single_file_model = True
+                        self.is_unet_only = True
+                        logger.info("Model loaded successfully with custom transformer weights.")
+                        return True
+                    
+                    elif has_std_unet:
+                        # This is a Stable Diffusion UNet-only checkpoint
+                        logger.info("Detected Stable Diffusion UNet-only checkpoint.")
+                        
+                        if not self.base_model_path:
+                            logger.warning("No base_model_path specified for UNet-only checkpoint. Using default Stable Diffusion v1.5")
+                            self.base_model_path = "runwayml/stable-diffusion-v1-5"
+                        
+                        logger.info(f"Loading base model: {self.base_model_path}")
+                        self.pipeline = StableDiffusionPipeline.from_pretrained(
+                            self.base_model_path,
+                            torch_dtype=torch.bfloat16,
+                            local_files_only=False
+                        ).to("cuda:0")
+                        
+                        # Load and replace the UNet
+                        logger.info("Loading custom UNet from safetensors...")
+                        unet = UNet2DConditionModel.from_config(self.pipeline.unet.config)
+                        unet.load_state_dict(state_dict)
+                        self.pipeline.unet = unet
+                        
+                        self.is_single_file_model = True
+                        self.is_unet_only = True
+                        logger.info("Model loaded successfully with custom UNet.")
+                        return True
+                    else:
+                        # Try to load as full pipeline
+                        logger.info("Attempting to load as full StableDiffusionPipeline...")
+                        self.pipeline = StableDiffusionPipeline.from_single_file(
+                            self.model_path,
+                            torch_dtype=torch.bfloat16,
+                            use_safetensors=True
+                        ).to("cuda:0")
+                        self.is_single_file_model = True
+                        self.is_unet_only = False
+                        logger.info("Model loaded successfully.")
+                        return True
+                
+                except Exception as e:
+                    logger.error(f"Error loading .safetensors file: {e}")
+                    return False
+            
+            else:
+                # Load from directory (ZImage model structure)
+                logger.info("Loading model from directory structure")
+                self.pipeline = ZImageImg2ImgPipeline.from_pretrained(
+                    self.model_path,
+                    torch_dtype=torch.bfloat16,
+                    use_safetensors=True,
+                    local_files_only=True).to("cuda:0")
+                self.is_single_file_model = False
+            
             logger.info("Model loaded successfully.")
             return True
 
@@ -155,37 +271,71 @@ class ImageGenerator:
                 reference_img = self._load_reference_image(ref_image_path)
                 height = reference_img.height
                 width = reference_img.width
+                
                 with torch.no_grad():
-                    result = self.pipeline(
-                        prompt=prompt,
-                        image=reference_img,
-                        negative_prompt=negative_prompt,
-                        num_inference_steps=num_inference_steps,
-                        guidance_scale=guidance_scale,
-                        num_images_per_prompt=1,
-                        strength=strength,
-                        height=height,
-                        width=width,
-                        generator=generator,
-                        callback_on_step_end=callback
-                    )
+                    # Check the actual pipeline type to determine which inference path to use
+                    if isinstance(self.pipeline, (ZImageImg2ImgPipeline, ZImagePipeline)):
+                        # ZImage model (directory-based or checkpoint-based)
+                        result = self.pipeline(
+                            prompt=prompt,
+                            image=reference_img,
+                            negative_prompt=negative_prompt,
+                            num_inference_steps=num_inference_steps,
+                            guidance_scale=guidance_scale,
+                            num_images_per_prompt=1,
+                            strength=strength,
+                            height=height,
+                            width=width,
+                            generator=generator,
+                            callback_on_step_end=callback
+                        )
+                    else:
+                        # StableDiffusion model (img2img)
+                        img2img_pipe = StableDiffusionImg2ImgPipeline(**self.pipeline.components)
+                        result = img2img_pipe(
+                            prompt=prompt,
+                            image=reference_img,
+                            negative_prompt=negative_prompt,
+                            num_inference_steps=num_inference_steps,
+                            guidance_scale=guidance_scale,
+                            num_images_per_prompt=1,
+                            strength=strength,
+                            generator=generator,
+                            callback_on_step_end=callback
+                        )
             else:
-
-                # Create Txt2Img pipeline sharing components
+                # Text-to-Image (no reference image provided)
                 # logger.info("No reference image provided. Switching to Text-to-Image mode.")
-                txt2img_pipe = ZImagePipeline(**self.pipeline.components)
+                
                 with torch.no_grad():
-                    result = txt2img_pipe(
-                        prompt=prompt,
-                        negative_prompt=negative_prompt,
-                        num_inference_steps=num_inference_steps,
-                        guidance_scale=guidance_scale,
-                        num_images_per_prompt=1,
-                        height=height,
-                        width=width,
-                        generator=generator,
-                        callback_on_step_end=callback
-                    )
+                    # Check the actual pipeline type to determine which inference path to use
+                    if isinstance(self.pipeline, (ZImageImg2ImgPipeline, ZImagePipeline)):
+                        # ZImage model (directory-based or checkpoint-based)
+                        txt2img_pipe = ZImagePipeline(**self.pipeline.components)
+                        result = txt2img_pipe(
+                            prompt=prompt,
+                            negative_prompt=negative_prompt,
+                            num_inference_steps=num_inference_steps,
+                            guidance_scale=guidance_scale,
+                            num_images_per_prompt=1,
+                            height=height,
+                            width=width,
+                            generator=generator,
+                            callback_on_step_end=callback
+                        )
+                    else:
+                        # StableDiffusion model (txt2img)
+                        result = self.pipeline(
+                            prompt=prompt,
+                            negative_prompt=negative_prompt,
+                            num_inference_steps=num_inference_steps,
+                            guidance_scale=guidance_scale,
+                            num_images_per_prompt=1,
+                            height=height,
+                            width=width,
+                            generator=generator,
+                            callback_on_step_end=callback
+                        )
 
             return result.images[0]
 
