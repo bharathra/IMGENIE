@@ -1,5 +1,6 @@
 input_path: "/root/.imgenie/input"
 output_path: "/root/.imgenie/output"
+save_metadata: true
 
 txt2img:
   ZImageTurbo:

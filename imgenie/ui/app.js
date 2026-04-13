@@ -57,6 +57,18 @@ async function loadAppConfig() {
         if (response.ok) {
             IMGENIE_CONFIG = await response.json();
             console.log('✓ IMGENIE config loaded:', IMGENIE_CONFIG);
+            
+            // Initialize save metadata checkbox from config
+            const saveMetadataCheckbox = document.getElementById('saveMetadataCheckbox');
+            if (saveMetadataCheckbox && IMGENIE_CONFIG.save_metadata !== undefined) {
+                saveMetadataCheckbox.checked = IMGENIE_CONFIG.save_metadata;
+            }
+            
+            // Restore save metadata state from localStorage (user preference overrides config)
+            const savedMetadataState = localStorage.getItem('saveMetadataEnabled');
+            if (savedMetadataState !== null && saveMetadataCheckbox) {
+                saveMetadataCheckbox.checked = savedMetadataState === 'true';
+            }
         } else {
             console.warn('⚠️ Could not load config from server');
         }
@@ -360,6 +372,14 @@ function attachEventListeners() {
         if (el) el.addEventListener('change', saveConfigToLocalStorage);
     });
 
+    // Save metadata checkbox state to localStorage
+    const saveMetadataCheckbox = document.getElementById('saveMetadataCheckbox');
+    if (saveMetadataCheckbox) {
+        saveMetadataCheckbox.addEventListener('change', () => {
+            localStorage.setItem('saveMetadataEnabled', saveMetadataCheckbox.checked);
+        });
+    }
+
     // Prompt template selection
     const promptTemplateSelect = document.getElementById('promptTemplateSelect');
     if (promptTemplateSelect) {
@@ -439,13 +459,13 @@ function attachEventListeners() {
 function setupCollapsibles() {
     const cards = document.querySelectorAll('.card');
 
-    // Initially expand first card, collapse others (except generation)
+    // Initially expand first card, collapse others
     cards.forEach((card, index) => {
         const header = card.querySelector('.section-header');
         if (!header) return;
 
-        // Special handling for generation card - always visible
-        if (card.classList.contains('generation')) {
+        // Skip collapsible for results card (always visible)
+        if (card.classList.contains('results')) {
             card.classList.add('active');
             return; // Skip adding click listener
         }
@@ -466,9 +486,9 @@ function setupCollapsibles() {
             const parentPanel = card.closest('.controls-panel, .viewport-panel');
             const scope = parentPanel ? parentPanel : document;
 
-            // Close all except generation in the same scope
+            // Close all in the same scope
             scope.querySelectorAll('.card').forEach(c => {
-                if (!c.classList.contains('generation') && c !== card) {
+                if (c !== card) {
                     c.classList.remove('active');
                 }
             });
@@ -487,9 +507,9 @@ function expandSection(sectionClass) {
         const parentPanel = section.closest('.controls-panel, .viewport-panel');
         const scope = parentPanel ? parentPanel : document;
 
-        // Collapse all first in same scope, except generation
+        // Collapse all first in same scope
         scope.querySelectorAll('.card').forEach(c => {
-            if (!c.classList.contains('generation') && c !== section) {
+            if (c !== section) {
                 c.classList.remove('active');
             }
         });
@@ -879,8 +899,8 @@ async function handleGenerate() {
     appState.isGenerating = true;
     updateGenerationUI();
 
-    // Auto-expand Generation panel
-    expandSection('generation');
+    // Auto-expand Results panel
+    expandSection('results');
 
     // Start polling progress
     pollGenerationProgress();
@@ -1022,7 +1042,7 @@ function updateGenerationUI() {
 
     // Update button text based on task
     const isTextToImage = appState.currentTask === 'text-to-image';
-    const taskName = isTextToImage ? 'Generate Image' : 'Describe Image';
+    const taskName = isTextToImage ? 'Generate' : 'Describe';
     const taskEmoji = isTextToImage ? '✨' : '📝';
 
     if (appState.isGenerating) {
@@ -1088,8 +1108,6 @@ function displayDescription(description, metadata) {
 
     descriptionText.value = description;
 
-    resultsSection.style.display = 'block';
-    resultsSection.scrollIntoView({ behavior: 'smooth' });
     expandSection('results');
 }
 
@@ -1105,8 +1123,12 @@ async function handleSaveImage() {
     saveBtn.disabled = true;
 
     try {
+        const saveMetadataCheckbox = document.getElementById('saveMetadataCheckbox');
+        const saveMetadata = saveMetadataCheckbox ? saveMetadataCheckbox.checked : true;
+
         const payload = {
             image_id: appState.lastImageId,
+            save_metadata: saveMetadata,
             metadata: {
                 model_id: appState.selectedModel,
                 params: appState.lastImageParams || {},

@@ -167,6 +167,14 @@
                                     class="param-input">
                                 <div class="param-hint">Use the same seed to reproduce results</div>
                             </div>
+
+                            <div class="param-group">
+                                <label class="checkbox-label">
+                                    <input type="checkbox" id="saveMetadataCheckbox" checked>
+                                    <span>Save Metadata File</span>
+                                </label>
+                                <div class="param-hint">Save prompt and settings to a text file with the image</div>
+                            </div>
                         </div>
                     </section>
 
@@ -290,47 +298,30 @@
                             </div>
                         </div>
                     </section>
-
-                    <!-- Section 7: Generation -->
-                    <section class="card generation">
-                        <div class="section-header">
-                            <span class="step-number">7</span>
-                            <h2>Generate</h2>
-                        </div>
-                        <div class="card-content">
-                            <button class="btn btn-generate" id="generateBtn">
-                                ✨ Generate Image
-                            </button>
-                            <button class="btn btn-cancel" id="cancelBtn" style="display: none;">
-                                ⏹ Cancel Generation
-                            </button>
-                            <div class="generation-progress" id="generationProgress" style="display: none;">
-                                <div class="progress-info">
-                                    <p id="progressText">Processing...</p>
-                                    <span id="timeRemaining">Time remaining: --</span>
-                                </div>
-                                <div class="progress-bar large-progress">
-                                    <div class="progress-fill" id="generationProgressFill"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </section>
                 </div>
             </div>
 
             <!-- Viewport Panel -->
             <div class="viewport-panel">
-                <!-- Section 8: Results -->
-                <section class="card results" id="resultsSection" style="display: none;">
+                <!-- Section 7: Generation & Results -->
+                <section class="card results" id="resultsSection">
                     <div class="section-header">
-                        <span class="step-number">8</span>
+                        <span class="step-number">7</span>
                         <h2 id="resultsHeaderTitle">Generated Image</h2>
                         <div class="header-buttons" id="resultHeaderButtons"
                             style="display: flex; gap: 0.5rem; margin-right: 2rem;">
+                            <!-- Generate Button -->
+                            <button class="btn btn-generate" id="generateBtn"
+                                style="padding: 0.6rem 1rem; font-size: 1rem;">
+                                ✨ Generate
+                            </button>
+                            <button class="btn btn-cancel" id="cancelBtn" style="display: none; padding: 0.6rem 1rem; font-size: 1rem;">
+                                ⏹ Cancel
+                            </button>
                             <!-- Image Buttons -->
                             <button class="btn btn-icon-text" id="saveImageBtn"
                                 style="padding: 0.6rem 1rem; font-size: 1rem;">
-                                💾 Save Image
+                                💾 Save
                             </button>
                             <button class="btn btn-icon-text btn-danger" id="deleteImageBtn"
                                 style="padding: 0.6rem 1rem; font-size: 1rem;">
@@ -353,6 +344,15 @@
                         <span class="chevron">▼</span>
                     </div>
                     <div class="card-content" style="height: 100%; display: flex; flex-direction: column;">
+                        <div class="generation-progress" id="generationProgress" style="display: none;">
+                            <div class="progress-info">
+                                <p id="progressText">Processing...</p>
+                                <span id="timeRemaining">Time remaining: --</span>
+                            </div>
+                            <div class="progress-bar large-progress">
+                                <div class="progress-fill" id="generationProgressFill"></div>
+                            </div>
+                        </div>
                         <div class="result-container"
                             style="flex-grow: 1; display: flex; flex-direction: column; height: 100%;">
                             <div class="image-viewport" id="imageViewport">

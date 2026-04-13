@@ -116,7 +116,8 @@ def get_app_config():
 
     config = {
         'txt2img': server.t2i_cfg,
-        'img2txt': server.i2t_cfg
+        'img2txt': server.i2t_cfg,
+        'save_metadata': server.config.get('save_metadata', True)
     }
     return jsonify(config)
 
@@ -781,6 +782,7 @@ def save_image():
     data = request.json
     image_id = data.get('image_id')
     metadata = data.get('metadata', {})
+    save_metadata = data.get('save_metadata', server.config.get('save_metadata', True))
     
     if not image_id:
         return jsonify({'success': False, 'error': 'Image ID required'}), 400
@@ -797,14 +799,15 @@ def save_image():
         import shutil
         shutil.copy2(temp_path, target_path)
         
-        # Save metadata
-        yaml_path = os.path.splitext(target_path)[0] + '.yaml'
-        # Add timestamp and tool info if not present
-        metadata['saved_at'] = time.strftime('%Y-%m-%d %H:%M:%S')
-        metadata['tool'] = 'Imgenie Web UI'
-        
-        with open(yaml_path, 'w') as f:
-            yaml.dump(metadata, f, default_flow_style=False)
+        # Save metadata only if enabled
+        if save_metadata:
+            yaml_path = os.path.splitext(target_path)[0] + '.yaml'
+            # Add timestamp and tool info if not present
+            metadata['saved_at'] = time.strftime('%Y-%m-%d %H:%M:%S')
+            metadata['tool'] = 'Imgenie Web UI'
+            
+            with open(yaml_path, 'w') as f:
+                yaml.dump(metadata, f, default_flow_style=False)
             
         return jsonify({'success': True, 'path': target_path})
 
