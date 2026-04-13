@@ -323,9 +323,9 @@
                                 style="padding: 0.6rem 1rem; font-size: 1rem;">
                                 💾 Save
                             </button>
-                            <button class="btn btn-icon-text btn-danger" id="deleteImageBtn"
+                            <button class="btn btn-icon-text" id="clearImageBtn"
                                 style="padding: 0.6rem 1rem; font-size: 1rem;">
-                                🗑️ Delete
+                                ✕ Clear
                             </button>
                             <!-- Description Buttons (Hidden by default) -->
                             <button class="btn btn-icon-text" id="copyDescBtn"
@@ -371,8 +371,18 @@
                     </div>
                 </section>
             </div>
+
+            <!-- Thumbnails Panel -->
+            <div class="thumbnails-panel" id="thumbnailsPanel">
+                <div class="thumbnails-header">
+                    <h3>📚 Recent (15)</h3>
+                </div>
+                <div class="thumbnails-container" id="thumbnailsContainer">
+                    <!-- Thumbnails will be loaded here -->
+                </div>
+            </div>
         </div>
-    </main>
+    </main>>
 
 
     <!-- Toast Notifications -->

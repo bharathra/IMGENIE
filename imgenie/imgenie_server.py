@@ -869,5 +869,59 @@ def delete_image():
         print(f"Error deleting image: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/saved-images', methods=['GET'])
+def get_saved_images():
+    """Get list of last 15 saved images from output folder"""
+    if not server:
+        return jsonify({'images': []})
+    
+    try:
+        output_path = Path(server.output_folder)
+        if not output_path.exists():
+            return jsonify({'images': []})
+        
+        # Get all image files (excluding yaml files)
+        image_extensions = {'.png', '.jpg', '.jpeg', '.gif', '.webp'}
+        images = []
+        
+        for file_path in output_path.iterdir():
+            if file_path.suffix.lower() in image_extensions:
+                images.append({
+                    'filename': file_path.name,
+                    'path': f'/api/image/{file_path.name}',
+                    'modified_time': file_path.stat().st_mtime
+                })
+        
+        # Sort by modified time (newest first)
+        images.sort(key=lambda x: x['modified_time'], reverse=True)
+        
+        # Return only last 15
+        return jsonify({'images': images[:15]})
+    
+    except Exception as e:
+        print(f"Error fetching saved images: {e}")
+        return jsonify({'images': []})
+
+@app.route('/api/image/<filename>', methods=['GET'])
+def get_image(filename):
+    """Serve saved image from output folder"""
+    if not server:
+        return jsonify({'error': 'Server not initialized'}), 500
+    
+    # Basic sanitization to prevent directory traversal
+    if '..' in filename or '/' in filename or '\\' in filename:
+        return jsonify({'error': 'Invalid filename'}), 400
+    
+    try:
+        file_path = Path(server.output_folder) / filename
+        if not file_path.exists():
+            return jsonify({'error': 'Image not found'}), 404
+        
+        return send_from_directory(server.output_folder, filename)
+    
+    except Exception as e:
+        print(f"Error serving image: {e}")
+        return jsonify({'error': str(e)}), 500
+
 if __name__ == '__main__':
     main()

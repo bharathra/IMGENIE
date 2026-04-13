@@ -18,7 +18,8 @@ const appState = {
     settings: {},
     availableModels: [],
     availableResolutions: [],
-    savedModelId: ''
+    savedModelId: '',
+    currentLoadedImageFilename: null
 };
 
 // ===========================
@@ -45,6 +46,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     fetchLoRAs();
     // Initial fetch of prompt templates
     fetchPromptTemplates();
+    // Initial fetch of saved images
+    fetchSavedImages();
 });
 
 // ===========================
@@ -406,7 +409,7 @@ function attachEventListeners() {
 
     // Results actions
     document.getElementById('saveImageBtn')?.addEventListener('click', handleSaveImage);
-    document.getElementById('deleteImageBtn')?.addEventListener('click', handleDeleteImage);
+    document.getElementById('clearImageBtn')?.addEventListener('click', handleClearImage);
 
     // Description actions
     document.getElementById('copyDescBtn')?.addEventListener('click', () => {
@@ -569,8 +572,8 @@ function updateResultsPanel() {
     const saveImg = document.getElementById('saveImageBtn');
     if (saveImg) saveImg.style.display = isImageTask ? 'inline-flex' : 'none';
 
-    const delImg = document.getElementById('deleteImageBtn');
-    if (delImg) delImg.style.display = isImageTask ? 'inline-flex' : 'none';
+    const clearImg = document.getElementById('clearImageBtn');
+    if (clearImg) clearImg.style.display = isImageTask ? 'inline-flex' : 'none';
 
     const copyDesc = document.getElementById('copyDescBtn');
     if (copyDesc) copyDesc.style.display = isImageTask ? 'none' : 'inline-flex';
@@ -709,62 +712,20 @@ async function handleUnloadModel() {
 // FILE UPLOAD
 // ===========================
 
-async function handleDeleteImage() {
-    if (!appState.lastImageId) {
-        showToast('No image to delete', 'warning');
-        return;
-    }
+function handleClearImage() {
+    // Clear viewport
+    const imgEl = document.getElementById('generatedImage');
+    imgEl.removeAttribute('src');
+    imgEl.style.display = 'none';
 
-    // if (!confirm('Are you sure you want to delete this image? This cannot be undone.')) {
-    //     return;
-    // }
+    // Clear state
+    appState.lastImageId = null;
+    appState.currentLoadedImageFilename = null;
 
-    const deleteBtn = document.getElementById('deleteImageBtn');
-    let originalText = '🗑️ Delete';
-    if (deleteBtn) {
-        originalText = deleteBtn.innerHTML;
-        deleteBtn.innerHTML = 'Deleting...';
-        deleteBtn.disabled = true;
-    }
-
-    try {
-        const response = await fetch(`${API_BASE}/delete_image`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                image_id: appState.lastImageId
-            })
-        });
-
-        const result = await response.json();
-
-        if (result.success) {
-            // showToast('Image deleted successfully', 'success');
-            // Clear viewport
-            // Clear viewport
-            const imgEl = document.getElementById('generatedImage');
-            imgEl.removeAttribute('src');
-            imgEl.style.display = 'none'; // Explicitly hide
-
-            // In landscape, section is forced visible, so hiding display:none is moot there
-            // but harmless for portrait.
-            document.getElementById('resultsSection').style.display = 'none';
-
-            appState.lastImageId = null;
-        } else {
-            throw new Error(result.error || 'Failed to delete image');
-        }
-    } catch (error) {
-        console.error('Delete error:', error);
-        showToast(`Delete failed: ${error.message}`, 'error');
-    } finally {
-        if (deleteBtn) {
-            deleteBtn.innerHTML = originalText;
-            deleteBtn.disabled = false;
-        }
-    }
+    // Remove thumbnail indicator
+    document.querySelectorAll('.thumbnail-item').forEach(item => {
+        item.classList.remove('active');
+    });
 }
 
 function setupFileUpload(uploadAreaId, fileInputId, previewId, clearBtnId = null) {
@@ -1068,7 +1029,7 @@ function displayResults(imageUrl, params, imageId) {
 
     // Update Buttons
     document.getElementById('saveImageBtn').style.display = 'inline-flex';
-    document.getElementById('deleteImageBtn').style.display = 'inline-flex';
+    document.getElementById('clearImageBtn').style.display = 'inline-flex';
     document.getElementById('copyDescBtn').style.display = 'none';
     document.getElementById('saveDescBtn').style.display = 'none';
 
@@ -1080,6 +1041,12 @@ function displayResults(imageUrl, params, imageId) {
     imageElement.src = imageUrl;
     appState.lastImageId = imageId;
     appState.lastImageParams = params;
+    appState.currentLoadedImageFilename = null; // Clear saved image indicator
+
+    // Remove active indicator from thumbnails
+    document.querySelectorAll('.thumbnail-item').forEach(item => {
+        item.classList.remove('active');
+    });
 
     resultsSection.style.display = 'block';
     resultsSection.scrollIntoView({ behavior: 'smooth' });
@@ -1097,7 +1064,7 @@ function displayDescription(description, metadata) {
 
     // Update Buttons
     document.getElementById('saveImageBtn').style.display = 'none';
-    document.getElementById('deleteImageBtn').style.display = 'none';
+    document.getElementById('clearImageBtn').style.display = 'none';
     document.getElementById('copyDescBtn').style.display = 'inline-flex';
     document.getElementById('saveDescBtn').style.display = 'inline-flex';
     document.getElementById('clearDescBtn').style.display = 'inline-flex';
@@ -1146,6 +1113,8 @@ async function handleSaveImage() {
 
         if (result.success) {
             // showToast(`Image saved to server output folder`, 'success');
+            // Refresh thumbnails after successful save
+            fetchSavedImages();
         } else {
             showToast(`Save failed: ${result.error}`, 'error');
         }
@@ -1411,5 +1380,117 @@ function updatePromptTemplateDropdown(prompts) {
 
         // If there are prompts, show the group, otherwise maybe hide it?
         // document.getElementById('promptTemplateGroup').style.display = Object.keys(prompts).length > 0 ? 'block' : 'none';
+    }
+}
+
+// ===========================
+// SAVED IMAGES MANAGEMENT
+// ===========================
+
+async function fetchSavedImages() {
+    try {
+        const response = await fetch(`${API_BASE}/saved-images`);
+        if (response.ok) {
+            const data = await response.json();
+            displaySavedImages(data.images);
+        }
+    } catch (e) {
+        console.error("Error fetching saved images:", e);
+    }
+}
+
+function displaySavedImages(images) {
+    const container = document.getElementById('thumbnailsContainer');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (!images || images.length === 0) {
+        container.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: var(--text-tertiary); padding: 2rem;">No saved images yet</p>';
+        return;
+    }
+
+    images.forEach(image => {
+        const thumbItem = document.createElement('div');
+        thumbItem.className = 'thumbnail-item';
+        thumbItem.dataset.filename = image.filename;
+
+        const img = document.createElement('img');
+        img.src = image.path;
+        img.alt = image.filename;
+        img.addEventListener('click', () => loadSavedImage(image.filename, image.path));
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'thumbnail-delete-btn';
+        deleteBtn.innerHTML = '🗑️';
+        deleteBtn.title = 'Delete image';
+        deleteBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteSavedImage(image.filename);
+        });
+
+        thumbItem.appendChild(img);
+        thumbItem.appendChild(deleteBtn);
+        container.appendChild(thumbItem);
+    });
+}
+
+function loadSavedImage(filename, imagePath) {
+    // Load image into main viewer
+    const generatedImage = document.getElementById('generatedImage');
+    if (generatedImage) {
+        generatedImage.src = imagePath;
+    }
+
+    // Update current image indicator
+    updateThumbnailIndicator(filename);
+
+    // Update app state
+    appState.currentLoadedImageFilename = filename;
+}
+
+function updateThumbnailIndicator(filename) {
+    // Remove active class from all thumbnails
+    document.querySelectorAll('.thumbnail-item').forEach(item => {
+        item.classList.remove('active');
+    });
+
+    // Add active class to current thumbnail
+    const currentThumb = document.querySelector(`.thumbnail-item[data-filename="${filename}"]`);
+    if (currentThumb) {
+        currentThumb.classList.add('active');
+    }
+}
+
+async function deleteSavedImage(filename) {
+    if (!confirm(`Delete "${filename}"?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE}/delete_image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image_id: filename })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+            showToast(`Image deleted`, 'success');
+            // Refresh the thumbnails list
+            fetchSavedImages();
+
+            // Clear main viewer if the deleted image was being viewed
+            if (appState.currentLoadedImageFilename === filename) {
+                document.getElementById('generatedImage').src = '';
+                appState.currentLoadedImageFilename = null;
+            }
+        } else {
+            showToast(`Delete failed: ${result.error}`, 'error');
+        }
+    } catch (e) {
+        console.error("Error deleting image:", e);
+        showToast('Delete failed', 'error');
     }
 }

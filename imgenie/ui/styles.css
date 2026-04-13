@@ -1114,6 +1114,90 @@ body {
 }
 
 /* ===========================
+   THUMBNAILS PANEL
+   =========================== */
+
+.thumbnails-panel {
+    display: none;
+    flex-direction: column;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+}
+
+.thumbnails-header {
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--bg-primary);
+}
+
+.thumbnails-header h3 {
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.thumbnails-container {
+    overflow-y: auto;
+    flex-grow: 1;
+    display: grid;
+    gap: 1rem;
+    padding: 1rem;
+}
+
+.thumbnail-item {
+    position: relative;
+    cursor: pointer;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+    aspect-ratio: 1;
+}
+
+.thumbnail-item:hover {
+    border-color: var(--accent-primary);
+    transform: scale(1.05);
+}
+
+.thumbnail-item.active {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
+}
+
+.thumbnail-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.thumbnail-delete-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(0, 0, 0, 0.7);
+    border: none;
+    color: white;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.thumbnail-item:hover .thumbnail-delete-btn {
+    opacity: 1;
+}
+
+.thumbnail-delete-btn:hover {
+    background: rgba(255, 71, 87, 0.9);
+}
+
+/* ===========================
    LORA ADAPTERS
    =========================== */
 
@@ -1329,6 +1413,29 @@ body {
         background: var(--bg-primary);
         width: 100%;
     }
+
+    .thumbnails-panel {
+        display: flex;
+        width: 200px;
+        min-width: 200px;
+        max-width: 200px;
+        border-left: 2px solid var(--border-color);
+        box-shadow: var(--shadow-md);
+    }
+
+    .thumbnails-container {
+        grid-template-columns: 180px;
+        grid-auto-rows: 160px;
+        overflow-y: auto;
+        overflow-x: hidden;
+        gap: 0.5rem;
+        padding: 1rem;
+    }
+
+    .thumbnail-item {
+        width: 152px;
+        height: 152px;
+    }
 }
 
 @media (orientation: portrait) {
@@ -1383,6 +1490,30 @@ body {
 
     .generated-image {
         border-radius: 0;
+    }
+
+    .thumbnails-panel {
+        display: flex;
+        width: 100%;
+        height: 200px;
+        border-top: 1px solid var(--border-color);
+        margin-top: 1rem;
+    }
+
+    .thumbnails-container {
+        grid-template-columns: none;
+        grid-auto-columns: 100px;
+        grid-auto-flow: column;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 0.5rem;
+        gap: 0.5rem;
+    }
+
+    .thumbnail-item {
+        min-width: 100px;
+        min-height: 100px;
+        aspect-ratio: 1;
     }
 }
 
