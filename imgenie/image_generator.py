@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Optional, Union
 import yaml as yf   # to avoid conflict with PyYAML
 
+import numpy as np
 import torch
 from PIL import Image
 from diffusers import (
@@ -231,6 +232,20 @@ class ImageGenerator:
             logger.error(f"Error loading reference image: {e}")
             raise e
 
+    def _is_blank_or_invalid_image(self, image: Image.Image) -> bool:
+        try:
+            arr = np.asarray(image)
+            if arr.size == 0:
+                return True
+            if np.isnan(arr).any() or np.isinf(arr).any():
+                return True
+            if np.all(arr == arr.flat[0]):
+                return True
+            return False
+        except Exception as e:
+            logger.warning(f"Unable to validate generated image: {e}")
+            return False
+
     def generate(self,
                  prompt: str,
                  ref_image_path: Optional[str] = None,
@@ -266,78 +281,74 @@ class ImageGenerator:
             if seed is not None:
                 generator = torch.Generator(device=self.pipeline.device).manual_seed(seed)
 
-            # Load reference image if provided
+            reference_img = None
             if ref_image_path and path.exists(ref_image_path):
                 reference_img = self._load_reference_image(ref_image_path)
                 height = reference_img.height
                 width = reference_img.width
-                
-                with torch.no_grad():
-                    # Check the actual pipeline type to determine which inference path to use
-                    if isinstance(self.pipeline, (ZImageImg2ImgPipeline, ZImagePipeline)):
-                        # ZImage model (directory-based or checkpoint-based)
-                        result = self.pipeline(
-                            prompt=prompt,
-                            image=reference_img,
-                            negative_prompt=negative_prompt,
-                            num_inference_steps=num_inference_steps,
-                            guidance_scale=guidance_scale,
-                            num_images_per_prompt=1,
-                            strength=strength,
-                            height=height,
-                            width=width,
-                            generator=generator,
-                            callback_on_step_end=callback
-                        )
-                    else:
-                        # StableDiffusion model (img2img)
-                        img2img_pipe = StableDiffusionImg2ImgPipeline(**self.pipeline.components)
-                        result = img2img_pipe(
-                            prompt=prompt,
-                            image=reference_img,
-                            negative_prompt=negative_prompt,
-                            num_inference_steps=num_inference_steps,
-                            guidance_scale=guidance_scale,
-                            num_images_per_prompt=1,
-                            strength=strength,
-                            generator=generator,
-                            callback_on_step_end=callback
-                        )
-            else:
-                # Text-to-Image (no reference image provided)
-                # logger.info("No reference image provided. Switching to Text-to-Image mode.")
-                
-                with torch.no_grad():
-                    # Check the actual pipeline type to determine which inference path to use
-                    if isinstance(self.pipeline, (ZImageImg2ImgPipeline, ZImagePipeline)):
-                        # ZImage model (directory-based or checkpoint-based)
-                        txt2img_pipe = ZImagePipeline(**self.pipeline.components)
-                        result = txt2img_pipe(
-                            prompt=prompt,
-                            negative_prompt=negative_prompt,
-                            num_inference_steps=num_inference_steps,
-                            guidance_scale=guidance_scale,
-                            num_images_per_prompt=1,
-                            height=height,
-                            width=width,
-                            generator=generator,
-                            callback_on_step_end=callback
-                        )
-                    else:
-                        # StableDiffusion model (txt2img)
-                        result = self.pipeline(
-                            prompt=prompt,
-                            negative_prompt=negative_prompt,
-                            num_inference_steps=num_inference_steps,
-                            guidance_scale=guidance_scale,
-                            num_images_per_prompt=1,
-                            height=height,
-                            width=width,
-                            generator=generator,
-                            callback_on_step_end=callback
-                        )
 
-            return result.images[0]
+            def run_generation():
+                with torch.no_grad():
+                    if reference_img is not None:
+                        if isinstance(self.pipeline, (ZImageImg2ImgPipeline, ZImagePipeline)):
+                            return self.pipeline(
+                                prompt=prompt,
+                                image=reference_img,
+                                negative_prompt=negative_prompt,
+                                num_inference_steps=num_inference_steps,
+                                guidance_scale=guidance_scale,
+                                num_images_per_prompt=1,
+                                strength=strength,
+                                height=height,
+                                width=width,
+                                generator=generator,
+                                callback_on_step_end=callback
+                            ).images[0]
+                        else:
+                            img2img_pipe = StableDiffusionImg2ImgPipeline(**self.pipeline.components)
+                            return img2img_pipe(
+                                prompt=prompt,
+                                image=reference_img,
+                                negative_prompt=negative_prompt,
+                                num_inference_steps=num_inference_steps,
+                                guidance_scale=guidance_scale,
+                                num_images_per_prompt=1,
+                                strength=strength,
+                                generator=generator,
+                                callback_on_step_end=callback
+                            ).images[0]
+                    else:
+                        if isinstance(self.pipeline, (ZImageImg2ImgPipeline, ZImagePipeline)):
+                            return ZImagePipeline(**self.pipeline.components)(
+                                prompt=prompt,
+                                negative_prompt=negative_prompt,
+                                num_inference_steps=num_inference_steps,
+                                guidance_scale=guidance_scale,
+                                num_images_per_prompt=1,
+                                height=height,
+                                width=width,
+                                generator=generator,
+                                callback_on_step_end=callback
+                            ).images[0]
+                        else:
+                            return self.pipeline(
+                                prompt=prompt,
+                                negative_prompt=negative_prompt,
+                                num_inference_steps=num_inference_steps,
+                                guidance_scale=guidance_scale,
+                                num_images_per_prompt=1,
+                                height=height,
+                                width=width,
+                                generator=generator,
+                                callback_on_step_end=callback
+                            ).images[0]
+
+            image = run_generation()
+            if self._is_blank_or_invalid_image(image):
+                logger.warning("First generation produced an invalid or blank image; retrying once.")
+                image = run_generation()
+
+            return image
 
         except Exception as e:
             logger.error(f"Inference error: {e}")

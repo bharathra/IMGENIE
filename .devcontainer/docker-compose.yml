@@ -52,7 +52,7 @@ services:
       # - .:/workspace:cached
       - ..:/IMGENIE
       - /home/bharath/.imgenie:/root/.imgenie
-      - /home/bharath/.cache/huggingface:/root/.cache/huggingface
+      # - /home/bharath/.cache/huggingface:/root/.cache/huggingface
       # X11 socket and auth for GUI apps
       - /tmp/.X11-unix:/tmp/.X11-unix
       - ~/.Xauthority:/root/.Xauthority:rw

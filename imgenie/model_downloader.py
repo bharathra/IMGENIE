@@ -17,7 +17,7 @@ class ModelDownloader:
 
     def download_model(self, model_id: str) -> Path:
         model_folder = Path(self.cache_folder,
-                            f"model--{model_id.replace("/", ".")}")
+                            f"{model_id.replace("-", "").replace("/", ".")}")
         Path(model_folder).mkdir(parents=True, exist_ok=True)
         logger.info(f"Downloading {model_id}...")
         logger.info(f"Destination directory: {model_folder}")
@@ -32,4 +32,4 @@ class ModelDownloader:
 
 if __name__ == "__main__":
     server = ModelDownloader()
-    server.download_model("stabilityai/stable-diffusion-x4-upscaler")
+    server.download_model("Tongyi-MAI/Z-Image-Turbo")
