@@ -10,18 +10,18 @@ gi.require_version('Gtk', '3.0')
 try:
     gi.require_version('AyatanaAppIndicator3', '0.1')
     from gi.repository import AyatanaAppIndicator3 as AppIndicator
-except ImportError:
+except (ImportError, ValueError):
     try:
         gi.require_version('AppIndicator3', '0.1')
         from gi.repository import AppIndicator3 as AppIndicator
-    except ImportError:
+    except (ImportError, ValueError):
         print("Neither AyatanaAppIndicator3 nor AppIndicator3 found.")
         sys.exit(1)
 
 from gi.repository import Gtk, GLib
 
 APP_NAME = "Imgenie"
-ICON_NAME = "utilities-terminal"  # Using a stock icon
+ICON_NAME = "camera-photo"  # Using a stock icon
 SCRIPT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "imgenie.sh")
 
 class ImgenieTray:
