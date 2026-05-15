@@ -179,36 +179,71 @@ class ImageGenerator:
             logger.warning("No model pipeline to unload.")
         self.pipeline = None
 
-    def load_loras(self, loras: list, weights: Optional[list] = None) -> None:
-        """Loads multiple LoRA adapters into the pipeline correctly from local files."""
+    def load_loras(self, loras: list, weights: Optional[list] = None) -> dict:
+        """Loads multiple LoRA adapters into the pipeline correctly from local files.
+        
+        Returns:
+            dict: {'failed_loras': list of lora paths that failed to load}
+        """
         if self.pipeline is None:
             raise ValueError("Model pipeline is not loaded.")
 
         # First, unload existing loras
-        if self._active_loras:
+        # Always try to clear any adapters just in case to prevent adapter name collision
+        try:
             self.pipeline.unload_lora_weights()
-            self._active_loras = []
+        except Exception:
+            pass
+        self._active_loras = []
 
         if not loras:
-            return
+            return {'failed_loras': []}
 
         # load added loras
+        valid_indices = []
+        failed_loras = []
+
         for i, path_str in enumerate(loras):
             path = Path(path_str)
             adapter_name = f"adapter_{i}"
             # We pass the PARENT directory as the first argument,
             # and the specific filename as weight_name.
-            self.pipeline.load_lora_weights(
-                str(path.parent),
-                weight_name=path.name,
-                adapter_name=adapter_name
-            )
+            # For ZImage models, use prefix=None to avoid key mismatch warnings
+            prefix = None if isinstance(self.pipeline, (ZImageImg2ImgPipeline, ZImagePipeline)) else None  # Default is None anyway?
+            try:
+                self.pipeline.load_lora_weights(
+                    str(path.parent),
+                    weight_name=path.name,
+                    adapter_name=adapter_name,
+                    **({'prefix': prefix} if prefix is not None else {})
+                )
+                valid_indices.append(i)
+            except Exception as e:
+                logger.error(f"Error loading LoRA {path_str}: {e}")
+                failed_loras.append(path_str)
 
-        self._active_loras = loras.copy()
+        # Update active loras to only include successfully loaded ones
+        self._active_loras = [loras[i] for i in valid_indices]
         logger.info(f"Active LoRAs after update: {self._active_loras}")
-
-        # Set default weights
-        self.pipeline.set_adapters([f"adapter_{i}" for i in range(len(loras))], adapter_weights=weights)
+        
+        # Prepare weights for valid adapters
+        if weights is not None:
+            valid_weights = [weights[i] for i in valid_indices]
+        else:
+            valid_weights = None
+        
+        # Set adapters only for successfully loaded ones
+        if valid_indices:
+            try:
+                self.pipeline.set_adapters([f"adapter_{i}" for i in valid_indices], adapter_weights=valid_weights)
+            except Exception as e:
+                logger.error(f"Error setting adapters: {e}")
+        
+        logger.info(f"Successfully loaded LoRAs: {self._active_loras}")
+        if failed_loras:
+            logger.warning(f"Failed to load LoRAs: {failed_loras}")
+        
+        return {'failed_loras': failed_loras}
 
     def _load_reference_image(self, image_path: str) -> Image.Image:
         """Load and validate reference image."""

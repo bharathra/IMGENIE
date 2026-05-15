@@ -553,6 +553,7 @@ def generate():
                     loras = []
             char_name = None
             concept_name = None
+            failed_loras = []
             if server.t2i_model:
                 try:
                     # Always reset loras if none provided? 
@@ -594,12 +595,14 @@ def generate():
                     
                     # Call load_loras even if empty to clear previous
                     print(f"Loading LoRAs: {lora_paths}")
-                    server.t2i_model.load_loras(lora_paths, lora_weights)
+                    lora_result = server.t2i_model.load_loras(lora_paths, lora_weights)
+                    failed_loras = lora_result.get('failed_loras', [])
 
                 except Exception as e:
                     print(f"Error loading LoRAs: {e}")
                     import traceback
                     traceback.print_exc()
+                    failed_loras = []  # In case of exception, assume none loaded
 
 
             if char_name:
@@ -652,7 +655,8 @@ def generate():
                             'ref_image_strength': strength,
                             'seed': seed,
                             'ref_image_path': ref_image_path
-                        }
+                        },
+                        'warnings': [f"Failed to load LoRA: {os.path.basename(lora)}" for lora in failed_loras] if failed_loras else []
                     })
                 else:
                     return jsonify({'success': False, 'error': 'No image generated'}), 500
