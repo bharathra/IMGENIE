@@ -206,14 +206,35 @@ class ImageGenerator:
         for i, path_str in enumerate(loras):
             path = Path(path_str)
             adapter_name = f"adapter_{i}"
-            # We pass the PARENT directory as the first argument,
-            # and the specific filename as weight_name.
-            # For ZImage models, use prefix=None to avoid key mismatch warnings
-            prefix = None if isinstance(self.pipeline, (ZImageImg2ImgPipeline, ZImagePipeline)) else None  # Default is None anyway?
+            
             try:
+                # Load state dict to check and potentially convert keys
+                state_dict = load_file(str(path))
+                
+                # If LoRA was trained on base model using Kohya format, it uses 'lora_down'/'lora_up' 
+                # and 'transformer.' prefix which diffusers ignores for ZImage models.
+                # We convert these to standard PEFT format ('lora_A'/'lora_B' and 'diffusion_model.')
+                is_kohya = any('lora_down' in k for k in state_dict.keys())
+                if is_kohya:
+                    new_state_dict = {}
+                    for k, v in state_dict.items():
+                        new_key = k
+                        if 'lora_down' in new_key:
+                            new_key = new_key.replace('lora_down', 'lora_A')
+                        elif 'lora_up' in new_key:
+                            new_key = new_key.replace('lora_up', 'lora_B')
+                            
+                        if new_key.startswith('transformer.'):
+                            new_key = new_key.replace('transformer.', 'diffusion_model.', 1)
+                            
+                        new_state_dict[new_key] = v
+                    state_dict = new_state_dict
+
+                # For ZImage models, use prefix=None to avoid key mismatch warnings
+                prefix = None if isinstance(self.pipeline, (ZImageImg2ImgPipeline, ZImagePipeline)) else None
+                
                 self.pipeline.load_lora_weights(
-                    str(path.parent),
-                    weight_name=path.name,
+                    state_dict,
                     adapter_name=adapter_name,
                     **({'prefix': prefix} if prefix is not None else {})
                 )
