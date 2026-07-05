@@ -28,6 +28,7 @@ const appState = {
 
 document.addEventListener('DOMContentLoaded', async () => {
     initializeTheme();
+    initializeThumbnailsVisibility();
     await loadAppConfig();
     attachEventListeners();
     await populateModels();
@@ -315,6 +316,45 @@ document.getElementById('themeToggle').addEventListener('click', () => {
     const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
 });
+
+document.getElementById('toggleThumbnailsBtn').addEventListener('click', () => {
+    const panel = document.getElementById('thumbnailsPanel');
+    const isHidden = panel ? panel.classList.contains('thumbnails-hidden') : false;
+    setThumbnailsVisibility(isHidden);
+});
+
+function initializeThumbnailsVisibility() {
+    const show = localStorage.getItem('showThumbnails') !== 'false';
+    setThumbnailsVisibility(show);
+}
+
+function setThumbnailsVisibility(show) {
+    const panel = document.getElementById('thumbnailsPanel');
+    const btn = document.getElementById('toggleThumbnailsBtn');
+    const icon = document.getElementById('toggleThumbnailsIcon');
+    
+    if (panel) {
+        if (show) {
+            panel.classList.remove('thumbnails-hidden');
+        } else {
+            panel.classList.add('thumbnails-hidden');
+        }
+    }
+    
+    if (btn) {
+        if (show) {
+            btn.classList.remove('btn-inactive');
+            btn.title = "Hide recent thumbnails";
+            if (icon) icon.textContent = "📚";
+        } else {
+            btn.classList.add('btn-inactive');
+            btn.title = "Show recent thumbnails";
+            if (icon) icon.textContent = "📖";
+        }
+    }
+    
+    localStorage.setItem('showThumbnails', show);
+}
 
 // ===========================
 // EVENT LISTENERS
@@ -827,13 +867,13 @@ async function pollGenerationProgress() {
                 progressFill.classList.add('indeterminate');
                 progressText.textContent = 'Starting generation...';
             }
-
-            if (appState.isGenerating && data.status !== 'completed' && data.status !== 'failed') {
-                setTimeout(pollGenerationProgress, 500); // Poll every 500ms
-            }
         }
     } catch (e) {
         console.error("Error polling progress", e);
+    } finally {
+        if (appState.isGenerating) {
+            setTimeout(pollGenerationProgress, 500); // Poll every 500ms
+        }
     }
 }
 
@@ -1436,10 +1476,33 @@ function displaySavedImages(images) {
 }
 
 function loadSavedImage(filename, imagePath) {
+    // Ensure viewport is visible
+    const imageViewport = document.getElementById('imageViewport');
+    const descriptionViewport = document.getElementById('descriptionViewport');
+    if (imageViewport) imageViewport.style.display = 'block';
+    if (descriptionViewport) descriptionViewport.style.display = 'none';
+
+    // Update Header
+    const titleEl = document.getElementById('resultsHeaderTitle');
+    if (titleEl) titleEl.textContent = 'Generated Image';
+
+    // Update buttons
+    const saveImg = document.getElementById('saveImageBtn');
+    if (saveImg) saveImg.style.display = 'inline-flex';
+    const clearImg = document.getElementById('clearImageBtn');
+    if (clearImg) clearImg.style.display = 'inline-flex';
+    const copyDesc = document.getElementById('copyDescBtn');
+    if (copyDesc) copyDesc.style.display = 'none';
+    const saveDesc = document.getElementById('saveDescBtn');
+    if (saveDesc) saveDesc.style.display = 'none';
+    const clearDesc = document.getElementById('clearDescBtn');
+    if (clearDesc) clearDesc.style.display = 'none';
+
     // Load image into main viewer
     const generatedImage = document.getElementById('generatedImage');
     if (generatedImage) {
         generatedImage.src = imagePath;
+        generatedImage.style.display = 'block';
     }
 
     // Update current image indicator

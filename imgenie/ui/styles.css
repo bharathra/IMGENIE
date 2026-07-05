@@ -169,8 +169,7 @@ body {
     right: 2rem;
     display: flex;
     align-items: center;
-    gap: 0;
-    /* No gap needed for single item */
+    gap: 0.5rem;
 }
 
 .theme-toggle {
@@ -190,6 +189,18 @@ body {
     background: var(--bg-tertiary);
     border-color: var(--accent-primary);
     transform: translateY(-2px);
+}
+
+.theme-toggle.btn-inactive {
+    opacity: 0.5;
+}
+
+.theme-toggle.btn-inactive:hover {
+    opacity: 0.85;
+}
+
+.thumbnails-hidden {
+    display: none !important;
 }
 
 /* ===========================
