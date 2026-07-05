@@ -31,5 +31,10 @@ class ModelDownloader:
 
 
 if __name__ == "__main__":
+    import sys
+    model_id = "Tongyi-MAI/Z-Image-Turbo"
+    if len(sys.argv) > 1:
+        model_id = sys.argv[1]
+    
     server = ModelDownloader()
-    server.download_model("Tongyi-MAI/Z-Image-Turbo")
+    server.download_model(model_id)

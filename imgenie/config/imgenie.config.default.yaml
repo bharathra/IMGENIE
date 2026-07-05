@@ -13,6 +13,16 @@ txt2img:
     prompts_db_path: "/root/.imgenie/prompts/prompts.db.yaml"
     resolution_options: ["720x720", "1024x720", "1024x1024"]
 
+  Krea2Turbo:
+    name: "Krea 2 Turbo"
+    description: "High-speed Text-to-Image generation with Krea-2-Turbo model"
+    model_path: "/root/.imgenie/models/krea.Krea2Turbo"
+    prompts_yaml: "/root/.imgenie/prompts/prompts.yaml"
+    character_lora_path: "/root/.imgenie/loras/characters"
+    concept_lora_path: "/root/.imgenie/loras/concepts"
+    prompts_db_path: "/root/.imgenie/prompts/prompts.db.yaml"
+    resolution_options: ["720x720", "1024x1024", "2048x2048"]
+
 img2txt:
   JoyCaption:
     name: "Joy Caption"

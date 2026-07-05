@@ -17,6 +17,10 @@ from diffusers import (
     StableDiffusionImg2ImgPipeline,
     UNet2DConditionModel
 )
+try:
+    from diffusers import Krea2Pipeline
+except ImportError:
+    Krea2Pipeline = None
 from safetensors.torch import load_file
 
 logging.basicConfig(level=logging.INFO)
@@ -154,15 +158,138 @@ class ImageGenerator:
                     return False
             
             else:
-                # Load from directory (ZImage model structure)
+                # Load from directory
                 logger.info("Loading model from directory structure")
-                self.pipeline = ZImageImg2ImgPipeline.from_pretrained(
-                    self.model_path,
-                    torch_dtype=torch.bfloat16,
-                    use_safetensors=True,
-                    local_files_only=True).to("cuda:0")
+                
+                # Check model_index.json to dynamically load the right pipeline
+                import json
+                model_index_path = Path(self.model_path) / "model_index.json"
+                pipeline_class = ZImageImg2ImgPipeline
+                
+                if model_index_path.exists():
+                    try:
+                        with open(model_index_path, 'r') as f:
+                            model_index = json.load(f)
+                        class_name = model_index.get("_class_name")
+                        logger.info(f"Detected pipeline class from model_index.json: {class_name}")
+                        if class_name == "Krea2Pipeline":
+                            if Krea2Pipeline is None:
+                                raise ImportError(
+                                    "Krea2Pipeline is not available in the installed diffusers package. "
+                                    "Please install diffusers from source: pip install git+https://github.com/huggingface/diffusers.git"
+                                )
+                            pipeline_class = Krea2Pipeline
+                        elif class_name == "StableDiffusionPipeline":
+                            pipeline_class = StableDiffusionPipeline
+                        elif class_name == "ZImageImg2ImgPipeline":
+                            pipeline_class = ZImageImg2ImgPipeline
+                        elif class_name == "ZImagePipeline":
+                            pipeline_class = ZImagePipeline
+                    except Exception as e:
+                        logger.warning(f"Error reading model_index.json: {e}. Defaulting to ZImageImg2ImgPipeline.")
+                
+                logger.info(f"Using pipeline class: {pipeline_class.__name__}")
+                
+                if pipeline_class == Krea2Pipeline:
+                    self.pipeline = Krea2Pipeline.from_pretrained(
+                        self.model_path,
+                        torch_dtype=torch.bfloat16,
+                        local_files_only=True
+                    ).to("cuda:0")
+                    
+                    # 1. Cast VAE to float16 to optimize decode speed
+                    if hasattr(self.pipeline, "vae") and self.pipeline.vae is not None:
+                        self.pipeline.vae.to(dtype=torch.float16)
+                        logger.info("Casted Krea2 VAE to float16 to optimize decode speed")
+                    
+                    # 2. Patch text encoding to use padding='longest' to avoid padding tokens
+                    original_get_text_hidden_states = self.pipeline.get_text_hidden_states
+                    def patched_get_text_hidden_states(pipeline_self, prompt, max_sequence_length=512, device=None):
+                        device = device or pipeline_self._execution_device
+                        prompt = [prompt] if isinstance(prompt, str) else prompt
+                        prefix_idx = pipeline_self.prompt_template_encode_start_idx
+                        text = [pipeline_self.prompt_template_encode_prefix + e for e in prompt]
+                        
+                        text_tokens = pipeline_self.tokenizer(
+                            text,
+                            truncation=True,
+                            padding="longest",
+                            max_length=max_sequence_length + prefix_idx - pipeline_self.prompt_template_encode_num_suffix_tokens,
+                            return_tensors="pt",
+                        ).to(device)
+                        suffix_tokens = pipeline_self.tokenizer([pipeline_self.prompt_template_encode_suffix] * len(text), return_tensors="pt").to(device)
+
+                        input_ids = torch.cat([text_tokens.input_ids, suffix_tokens.input_ids], dim=1)
+                        attention_mask = torch.cat([text_tokens.attention_mask, suffix_tokens.attention_mask], dim=1).bool()
+
+                        position_ids = (attention_mask.long().cumsum(dim=-1) - 1).clamp(min=0)
+                        position_ids = position_ids.unsqueeze(0).expand(3, -1, -1)
+
+                        outputs = pipeline_self.text_encoder(
+                            input_ids=input_ids,
+                            attention_mask=attention_mask,
+                            position_ids=position_ids,
+                            output_hidden_states=True,
+                        )
+                        hidden_states = torch.stack([outputs.hidden_states[i] for i in pipeline_self.text_encoder_select_layers], dim=2)
+
+                        hidden_states = hidden_states[:, prefix_idx:]
+                        attention_mask = attention_mask[:, prefix_idx:]
+                        
+                        return hidden_states, attention_mask
+
+                    self.pipeline.get_text_hidden_states = patched_get_text_hidden_states.__get__(self.pipeline, self.pipeline.__class__)
+                    logger.info("Patched Krea2Pipeline.get_text_hidden_states to use padding='longest'")
+
+                    # 3. Patch transformer forward pass to dynamically handle position_ids and bypass attention mask when it's all-True (which enables FlashAttention)
+                    original_forward = self.pipeline.transformer.forward
+                    def patched_transformer_forward(transformer_self, hidden_states, encoder_hidden_states, timestep, position_ids, encoder_attention_mask=None, **kwargs):
+                        text_seq_len = encoder_hidden_states.shape[1]
+                        image_seq_len = hidden_states.shape[1]
+                        grid_size = int(image_seq_len ** 0.5)
+                        
+                        device = hidden_states.device
+                        text_ids = torch.zeros(text_seq_len, 3, dtype=position_ids.dtype, device=device)
+                        image_ids = torch.zeros(grid_size, grid_size, 3, dtype=position_ids.dtype, device=device)
+                        image_ids[..., 1] = torch.arange(grid_size, device=device)[:, None]
+                        image_ids[..., 2] = torch.arange(grid_size, device=device)[None, :]
+                        image_ids = image_ids.reshape(grid_size * grid_size, 3)
+                        dynamic_position_ids = torch.cat([text_ids, image_ids], dim=0)
+
+                        if encoder_attention_mask is not None and encoder_attention_mask.all():
+                            encoder_attention_mask = None
+
+                        return original_forward(
+                            hidden_states=hidden_states,
+                            encoder_hidden_states=encoder_hidden_states,
+                            timestep=timestep,
+                            position_ids=dynamic_position_ids,
+                            encoder_attention_mask=encoder_attention_mask,
+                            **kwargs
+                        )
+
+                    self.pipeline.transformer.forward = patched_transformer_forward.__get__(self.pipeline.transformer, self.pipeline.transformer.__class__)
+                    logger.info("Patched Krea2Transformer2DModel.forward to enable dynamic position_ids and FlashAttention")
+                else:
+                    self.pipeline = ZImageImg2ImgPipeline.from_pretrained(
+                        self.model_path,
+                        torch_dtype=torch.bfloat16,
+                        use_safetensors=True,
+                        local_files_only=True).to("cuda:0")
                 self.is_single_file_model = False
             
+            # # Enable VAE tiling to prevent VRAM overflow and system RAM swapping during the final decode step (common for large resolutions like Krea2)
+            # if hasattr(self.pipeline, 'enable_vae_tiling'):
+            #     try:
+            #         self.pipeline.enable_vae_tiling()
+            #         logger.info("VAE tiling enabled to optimize memory usage and prevent swapping during decode.")
+            #     except Exception as e:
+            #         logger.warning(f"Could not enable VAE tiling: {e}")
+
+            # # Explicitly enable benchmarking for optimal convolution performance (this causes the first run of a new resolution to be slower as it profiles algorithms, but subsequent runs are faster)
+            # if torch.cuda.is_available():
+            #     torch.backends.cudnn.benchmark = True
+
             logger.info("Model loaded successfully.")
             return True
 
@@ -360,6 +487,18 @@ class ImageGenerator:
                                 generator=generator,
                                 callback_on_step_end=callback
                             ).images[0]
+                        elif Krea2Pipeline is not None and isinstance(self.pipeline, Krea2Pipeline):
+                            logger.warning("Krea2Pipeline does not natively support image-to-image (ref_image_path). Falling back to text-to-image.")
+                            return self.pipeline(
+                                prompt=prompt,
+                                negative_prompt=negative_prompt,
+                                num_inference_steps=num_inference_steps,
+                                guidance_scale=guidance_scale,
+                                height=height,
+                                width=width,
+                                generator=generator,
+                                callback_on_step_end=callback
+                            ).images[0]
                         else:
                             img2img_pipe = StableDiffusionImg2ImgPipeline(**self.pipeline.components)
                             return img2img_pipe(
@@ -381,6 +520,17 @@ class ImageGenerator:
                                 num_inference_steps=num_inference_steps,
                                 guidance_scale=guidance_scale,
                                 num_images_per_prompt=1,
+                                height=height,
+                                width=width,
+                                generator=generator,
+                                callback_on_step_end=callback
+                            ).images[0]
+                        elif Krea2Pipeline is not None and isinstance(self.pipeline, Krea2Pipeline):
+                            return self.pipeline(
+                                prompt=prompt,
+                                negative_prompt=negative_prompt,
+                                num_inference_steps=num_inference_steps,
+                                guidance_scale=guidance_scale,
                                 height=height,
                                 width=width,
                                 generator=generator,

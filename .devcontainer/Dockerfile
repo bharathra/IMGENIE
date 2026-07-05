@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y dbus-x11 \
 
 # Install additional Python packages
 RUN pip install --no-cache-dir \
-    diffusers>=0.21.0 \
+    git+https://github.com/huggingface/diffusers.git \
     transformers>=4.38.0 \
     pillow>=9.0.0 \
     accelerate>=0.20.0 \
