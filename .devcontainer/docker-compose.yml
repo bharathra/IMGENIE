@@ -60,10 +60,10 @@ services:
     working_dir: /IMGENIE
 
     # Uncomment the next four lines if you will use a ptrace-based debugger like C++, Go, and Rust.
-    # cap_add:
-    #   - SYS_PTRACE
-    # security_opt:
-    #   - seccomp:unconfined
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
 
     stdin_open: true
     tty: true
