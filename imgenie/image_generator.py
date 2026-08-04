@@ -167,11 +167,16 @@ class ImageGenerator:
                 pipeline_class = ZImageImg2ImgPipeline
                 
                 if model_index_path.exists():
+                    class_name = None
                     try:
                         with open(model_index_path, 'r') as f:
                             model_index = json.load(f)
                         class_name = model_index.get("_class_name")
                         logger.info(f"Detected pipeline class from model_index.json: {class_name}")
+                    except Exception as e:
+                        logger.warning(f"Error reading model_index.json: {e}. Defaulting to ZImageImg2ImgPipeline.")
+                    
+                    if class_name is not None:
                         if class_name == "Krea2Pipeline":
                             if Krea2Pipeline is None:
                                 raise ImportError(
@@ -185,8 +190,6 @@ class ImageGenerator:
                             pipeline_class = ZImageImg2ImgPipeline
                         elif class_name == "ZImagePipeline":
                             pipeline_class = ZImagePipeline
-                    except Exception as e:
-                        logger.warning(f"Error reading model_index.json: {e}. Defaulting to ZImageImg2ImgPipeline.")
                 
                 logger.info(f"Using pipeline class: {pipeline_class.__name__}")
                 
@@ -315,6 +318,11 @@ class ImageGenerator:
         if self.pipeline is None:
             raise ValueError("Model pipeline is not loaded.")
 
+        # Restore original txtfusion projector weight if previously modified
+        if getattr(self, '_orig_txtfusion_projector_weight', None) is not None:
+            if hasattr(self.pipeline, 'transformer') and hasattr(self.pipeline.transformer, 'text_fusion'):
+                self.pipeline.transformer.text_fusion.projector.weight.data.copy_(self._orig_txtfusion_projector_weight)
+
         # First, unload existing loras
         # Always try to clear any adapters just in case to prevent adapter name collision
         try:
@@ -329,6 +337,8 @@ class ImageGenerator:
         # load added loras
         valid_indices = []
         failed_loras = []
+        peft_adapters = []
+        peft_weights = []
 
         for i, path_str in enumerate(loras):
             path = Path(path_str)
@@ -357,14 +367,33 @@ class ImageGenerator:
                         new_state_dict[new_key] = v
                     state_dict = new_state_dict
 
-                # For ZImage models, use prefix=None to avoid key mismatch warnings
-                prefix = None if isinstance(self.pipeline, (ZImageImg2ImgPipeline, ZImagePipeline)) else None
-                
-                self.pipeline.load_lora_weights(
-                    state_dict,
-                    adapter_name=adapter_name,
-                    **({'prefix': prefix} if prefix is not None else {})
-                )
+                # Handle non-PEFT / .diff keys (e.g. txtfusion.projector.diff in Krea2 LoRAs)
+                adapter_weight = weights[i] if (weights is not None and i < len(weights)) else 1.0
+                diff_keys = [k for k in list(state_dict.keys()) if '.diff' in k or k.endswith('.diff')]
+                for k in diff_keys:
+                    val = state_dict.pop(k)
+                    if 'txtfusion.projector' in k and hasattr(self.pipeline, 'transformer') and hasattr(self.pipeline.transformer, 'text_fusion'):
+                        if getattr(self, '_orig_txtfusion_projector_weight', None) is None:
+                            self._orig_txtfusion_projector_weight = self.pipeline.transformer.text_fusion.projector.weight.data.clone()
+                        target_weight = self.pipeline.transformer.text_fusion.projector.weight
+                        target_weight.data += (val.to(target_weight.device, dtype=target_weight.dtype) * adapter_weight)
+                        logger.info(f"Applied {k} to transformer.text_fusion.projector.weight (scale={adapter_weight})")
+                    else:
+                        logger.warning(f"Unhandled diff key {k} in LoRA {path_str}")
+
+                if len(state_dict) > 0:
+                    # For ZImage models, use prefix=None to avoid key mismatch warnings
+                    prefix = None if isinstance(self.pipeline, (ZImageImg2ImgPipeline, ZImagePipeline)) else None
+                    
+                    self.pipeline.load_lora_weights(
+                        state_dict,
+                        adapter_name=adapter_name,
+                        **({'prefix': prefix} if prefix is not None else {})
+                    )
+                    peft_adapters.append(adapter_name)
+                    if weights is not None and i < len(weights):
+                        peft_weights.append(weights[i])
+
                 valid_indices.append(i)
             except Exception as e:
                 logger.error(f"Error loading LoRA {path_str}: {e}")
@@ -374,16 +403,10 @@ class ImageGenerator:
         self._active_loras = [loras[i] for i in valid_indices]
         logger.info(f"Active LoRAs after update: {self._active_loras}")
         
-        # Prepare weights for valid adapters
-        if weights is not None:
-            valid_weights = [weights[i] for i in valid_indices]
-        else:
-            valid_weights = None
-        
-        # Set adapters only for successfully loaded ones
-        if valid_indices:
+        # Set adapters only for registered PEFT adapters
+        if peft_adapters:
             try:
-                self.pipeline.set_adapters([f"adapter_{i}" for i in valid_indices], adapter_weights=valid_weights)
+                self.pipeline.set_adapters(peft_adapters, adapter_weights=peft_weights if weights is not None else None)
             except Exception as e:
                 logger.error(f"Error setting adapters: {e}")
         
