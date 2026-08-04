@@ -640,9 +640,10 @@ function handleModelSelect(e) {
     appState.selectedModel = e.target.value;
     saveConfigToLocalStorage();
 
-    // Load resolutions for selected model
+    // Load resolutions and LoRAs for selected model
     if (appState.selectedModel) {
         updateResolutionsForModel(appState.selectedModel);
+        fetchLoRAs();
     }
 
     // Show model details
@@ -1332,7 +1333,9 @@ function setupImageInteraction() {
 
 async function fetchLoRAs() {
     try {
-        const response = await fetch(`${API_BASE}/loras`);
+        const modelId = appState.selectedModel || '';
+        const url = modelId ? `${API_BASE}/loras?model_id=${encodeURIComponent(modelId)}` : `${API_BASE}/loras`;
+        const response = await fetch(url);
         if (response.ok) {
             const data = await response.json();
             updateLoRaDropdowns(data.characters || [], data.concepts || []);

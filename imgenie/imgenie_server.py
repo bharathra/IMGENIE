@@ -182,7 +182,7 @@ def get_model_resolutions(model_id):
 
 @app.route('/api/loras', methods=['GET'])
 def get_loras():
-    """Get available LoRAs for the current T2I model"""
+    """Get available LoRAs for a specified or current T2I model"""
     if not server:
         return jsonify({})
 
@@ -191,8 +191,8 @@ def get_loras():
         'concepts': []
     }
     
-    # Use current loaded model's config, or fallback to first available
-    model_id = server.current_t2i_id
+    # Use model_id from query parameter if provided, else fallback to current loaded model, else first available
+    model_id = request.args.get('model_id') or server.current_t2i_id
     if not model_id and server.t2i_cfg:
         model_id = list(server.t2i_cfg.keys())[0]
 
@@ -222,8 +222,6 @@ def get_loras():
 
     loras['characters'] = scan_dir(char_path_str)
     loras['concepts'] = scan_dir(concept_path_str)
-
-    return jsonify(loras)
 
     return jsonify(loras)
 
@@ -326,8 +324,13 @@ def load_model():
                      try: server.t2i_model.unload_model()
                      except: pass
                 
-                # Get lora path for this specific model if defined, else global
-                lora_path = model_config.get('lora_path', str(server.lora_path))
+                # Get lora path for this specific model if defined, else parent of character_lora_path, else global
+                lora_path = model_config.get('lora_path')
+                if not lora_path and model_config.get('character_lora_path'):
+                    lora_path = str(Path(model_config['character_lora_path']).parent)
+                if not lora_path:
+                    lora_path = str(server.lora_path)
+
                 if not os.path.isabs(lora_path) and server.config.get('root_dir'):
                      lora_path = os.path.join(server.config.get('root_dir'), lora_path)
                 
@@ -569,6 +572,10 @@ def generate():
                     model_cfg = server.t2i_cfg.get(server.current_t2i_id, {})
                     char_base = model_cfg.get('character_lora_path')
                     concept_base = model_cfg.get('concept_lora_path')
+                    if char_base and not os.path.isabs(char_base) and server.config.get('root_dir'):
+                        char_base = os.path.join(server.config.get('root_dir'), char_base)
+                    if concept_base and not os.path.isabs(concept_base) and server.config.get('root_dir'):
+                        concept_base = os.path.join(server.config.get('root_dir'), concept_base)
 
                     for lora in loras:
                         # Expected format: {'type': 'character'|'concept', 'name': 'filename', 'weight': 1.0}
