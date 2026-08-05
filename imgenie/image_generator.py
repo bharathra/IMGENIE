@@ -381,6 +381,27 @@ class ImageGenerator:
                     else:
                         logger.warning(f"Unhandled diff key {k} in LoRA {path_str}")
 
+                # Check for .alpha scalar keys (e.g. in some Krea2 LoRAs) which cause diffusers
+                # Krea2 converter to raise ValueError ('state_dict should be empty at this point').
+                # Extract the intended alpha/rank scaling factor before stripping .alpha keys so
+                # that PEFT loads the adapter at the correct mathematical scale (otherwise PEFT defaults
+                # alpha=rank, which can over-scale weights by up to 16x and produce noise).
+                alpha_keys = [k for k in state_dict.keys() if k.endswith('.alpha')]
+                if alpha_keys:
+                    try:
+                        sample_alpha = float(state_dict[alpha_keys[0]])
+                        rank_keys = [k for k in state_dict.keys() if 'lora_A' in k or 'lora_down' in k]
+                        if rank_keys:
+                            rank = state_dict[rank_keys[0]].shape[0]
+                            if rank > 0:
+                                alpha_scale = sample_alpha / float(rank)
+                                adapter_weight = adapter_weight * alpha_scale
+                                logger.info(f"Detected LoRA alpha={sample_alpha}, rank={rank}. Adjusted adapter scale factor to {alpha_scale:.6f}")
+                    except Exception as err:
+                        logger.warning(f"Error calculating alpha scale factor: {err}")
+                    
+                    state_dict = {k: v for k, v in state_dict.items() if not k.endswith('.alpha')}
+
                 if len(state_dict) > 0:
                     # For ZImage models, use prefix=None to avoid key mismatch warnings
                     prefix = None if isinstance(self.pipeline, (ZImageImg2ImgPipeline, ZImagePipeline)) else None
